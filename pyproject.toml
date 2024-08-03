@@ -1,0 +1,27 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "tts_tuto"
+version = "0.0.1"
+description = ""
+authors = ["Nicolas PREVOT <nicolasprevot57@gmail.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+numpy = "<2"
+torch = {version = "^2.4.0+cu124", source = "pytorch"}
+torchaudio = {version = "^2.4.0+cu124", source = "pytorch"}
+librosa = "^0.10.2.post1"
+vocos = "^0.1.0"
+encodec = "^0.1.1"
+safetensors = "^0.4.3"
+regex = "^2024.7.24"
+
+[[tool.poetry.source]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu124"
+priority = "explicit"
