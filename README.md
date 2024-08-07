@@ -6,7 +6,7 @@
 
     ```sh
     conda env create -v -f environment.yml --force
-    conda activate tts_tuto
+    conda activate tts_playground
     ```
 
 2. Install project dependencies with Poetry:
@@ -38,7 +38,7 @@
     poetry add torch torchvision torchaudio --source pytorch
     ```
 
-    ⚠️ torch issue `OSError: [WinError 126]` with `tts_tuto\Lib\site-packages\torch\lib\fbgemm.dll`?
+    ⚠️ torch issue `OSError: [WinError 126]` with `tts_playground\Lib\site-packages\torch\lib\fbgemm.dll`?
 
     💡 Solution: Download `libomp140.x86_64.dll` and add it to the same folder as `fbgemm.dll`
 
