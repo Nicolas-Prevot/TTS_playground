@@ -1,0 +1,10 @@
+name: tts_playground_F5-TTS
+
+channels:
+  - defaults
+
+dependencies:
+  - pip
+  - python=3.10
+  - pip:
+      - poetry==1.8.3
