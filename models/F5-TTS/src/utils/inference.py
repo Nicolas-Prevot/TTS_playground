@@ -1,5 +1,5 @@
 import os
-import re
+from loguru import logger
 import numpy as np
 import soundfile as sf
 from pathlib import Path
@@ -11,10 +11,9 @@ from f5_tts.infer.utils_infer import (
 
 
 def run_inference(
-    ref_audio: str,
-    ref_text: str,
+    voices_cfg: dict,
     gen_text: str,
-    config: dict,
+    gen_json: dict,
     ema_model,
     vocoder,
     vocoder_name: str,
@@ -26,56 +25,53 @@ def run_inference(
     speed: float,
     fix_duration: float,
     save_chunk: bool = False,
-    remove_silence: bool = False,
     output_dir: str = None,
-    output_file: str = None
+    output_file: str = None,
+    remove_silence: bool = False,
 ):
-    # Prepare voices dict
-    main_voice = {"ref_audio": ref_audio, "ref_text": ref_text}
-    if "voices" not in config:
-        voices = {"main": main_voice}
+    
+    for voice_key, voice_info in voices_cfg.items():
+        ref_audio_processed, ref_text_processed = preprocess_ref_audio_text(voice_info.get("ref_audio"), voice_info.get("ref_text"))
+        voices_cfg[voice_key]["ref_audio"] = ref_audio_processed
+        voices_cfg[voice_key]["ref_text"] = ref_text_processed
+    logger.info("All voices have been preprocessed.")
+
+    default_voice_key = list(voices_cfg.keys())[0]
+
+    segments = []
+    if gen_json:
+        for entry in gen_json:
+            voice_key = entry.get("voice")
+            text = entry.get("text")
+            segments.append((voice_key, text))
     else:
-        voices = config["voices"]
-        voices["main"] = main_voice
+        segments.append((default_voice_key, gen_text))
 
-    # Preprocess references
-    for voice in voices:
-        voices[voice]["ref_audio"], voices[voice]["ref_text"] = preprocess_ref_audio_text(
-            voices[voice]["ref_audio"], voices[voice]["ref_text"]
-        )
-
-    # Split and process gen_text
-    generated_audio_segments = []
-    reg1 = r"(?=\[\w+\])"
-    chunks = re.split(reg1, gen_text)
-    reg2 = r"\[(\w+)\]"
-
+    chunk_dir = None
     if save_chunk and output_dir and output_file:
-        output_chunk_dir = os.path.join(output_dir, f"{Path(output_file).stem}_chunks")
-        if not os.path.exists(output_chunk_dir):
-            os.makedirs(output_chunk_dir)
+        chunk_dir = os.path.join(output_dir, f"{Path(output_file).stem}_chunks")
+        os.makedirs(chunk_dir, exist_ok=True)
 
-    for text in chunks:
-        if not text.strip():
+    generated_audio_segments = []
+    final_sample_rate = 24000  # default fallback
+
+    for idx, (voice_key, segment_text) in enumerate(segments):
+
+        if voice_key not in voices_cfg:
+            logger.warning(f"In segment n°{idx}, voice '{voice_key}' not defined in config.voices. Using '{default_voice_key}' voice instead.")
+            voice_key = default_voice_key
+
+        ref_audio_ = voices_cfg[voice_key]["ref_audio"]
+        ref_text_ = voices_cfg[voice_key]["ref_text"]
+
+        if not segment_text.strip():
+            logger.debug(f"Skipping empty text in segment {idx}.")
             continue
-        match = re.match(reg2, text)
-        if match:
-            voice_key = match[1]
-        else:
-            voice_key = "main"
-
-        if voice_key not in voices:
-            voice_key = "main"
-
-        text = re.sub(reg2, "", text)
-        ref_audio_ = voices[voice_key]["ref_audio"]
-        ref_text_ = voices[voice_key]["ref_text"]
-        gen_text_ = text.strip()
 
         audio_segment, final_sample_rate, spectragram = infer_process(
             ref_audio_,
             ref_text_,
-            gen_text_,
+            segment_text,
             ema_model,
             vocoder,
             mel_spec_type=vocoder_name,
@@ -89,32 +85,26 @@ def run_inference(
         )
         generated_audio_segments.append(audio_segment)
 
-        if save_chunk and output_dir and output_file:
-            chunk_text = gen_text_
-            if len(chunk_text) > 200:
-                chunk_text = chunk_text[:200] + " ... "
-            sf.write(
-                os.path.join(output_chunk_dir, f"{len(generated_audio_segments)-1}_{chunk_text}.wav"),
-                audio_segment,
-                final_sample_rate,
-            )
+        if chunk_dir:
+            chunk_fname = f"{idx:03d}_{voice_key}.wav"
+            chunk_out_path = os.path.join(chunk_dir, chunk_fname)
+            sf.write(chunk_out_path, audio_segment, final_sample_rate)
+            logger.debug(f"Saved chunk {idx} for voice '{voice_key}'")
 
     if generated_audio_segments:
         final_wave = np.concatenate(generated_audio_segments)
     else:
         final_wave = np.array([], dtype=np.float32)
-        final_sample_rate = 24000  # default fallback
 
-    # Optionally write to disk
     if output_dir and output_file and len(final_wave) > 0:
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
+        os.makedirs(output_dir, exist_ok=True)
         wave_path = Path(output_dir) / output_file
         sf.write(str(wave_path), final_wave, final_sample_rate)
+        logger.info(f"Final audio written to {wave_path}")
+
         if remove_silence:
             remove_silence_for_generated_wav(str(wave_path))
-        print(f"Output written to {wave_path}")
+            logger.debug(f"Silence removed from {wave_path}")
 
     return final_wave, final_sample_rate
 
