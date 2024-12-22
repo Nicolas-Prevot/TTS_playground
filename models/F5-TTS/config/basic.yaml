@@ -1,0 +1,14 @@
+remove_silence: false
+user_speed: 1.3
+
+output_dir: "data/gen"
+output_file: "infer_cli_basic3.wav"
+
+gen_text: "On a quiet autumn evening, Emma discovered a glowing key buried beneath a tree in her backyard. The key pulsed with warmth as she held it, and suddenly, a door shimmered into existence in the trunk of the oak. Trembling with curiosity, she turned the key, stepped through the door, and vanished into a world of endless stars."
+gen_file: ""
+
+voices:
+  main:
+    ref_audio: "data/ref/basic_ref_en.wav"
+    ref_text: ""
+    ref_file: "data/ref/basic_ref_en.txt"
