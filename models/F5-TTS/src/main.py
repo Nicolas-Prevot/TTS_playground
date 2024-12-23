@@ -1,4 +1,5 @@
 from loguru import logger
+import argparse
 
 from f5_tts.infer.utils_infer import load_vocoder
 
@@ -7,11 +8,11 @@ from .utils.config_loader import load_configs
 from .utils.inference import run_inference
 
 
-def main(config_base_path, config_path):
+def main(config_base_path: str, config_path: str):
 
     config = load_configs(config_base_path, config_path)
-    logger.info(f"Configs correctly loaded '{config.vocoder_name}'")
-    print(config)
+    logger.info(f"Configs correctly loaded.")
+    logger.debug(f"Received arguments: {config}")
 
     vocoder = load_vocoder(vocoder_name=config.vocoder_name,
                            is_local=config.vocoder_is_local,
@@ -48,9 +49,34 @@ def main(config_base_path, config_path):
     )
 
 
+def parse_arguments() -> argparse.Namespace:
+
+    parser = argparse.ArgumentParser(
+        description="F5-TTS Inference Script",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument(
+        '--config-base-path',
+        type=str,
+        default="models/F5-TTS/config/base.yaml",
+        help="Path to the base configuration file."
+    )
+
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default="models/F5-TTS/config/basic.yaml",
+        help="Path to the specific configuration file."
+    )
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
 
-    config_base_path = "models/F5-TTS/config/base.yaml"
-    config_path = "models/F5-TTS/config/basic.yaml"
+    args = parse_arguments()
+    logger.debug(f"Received arguments: {args}")
 
-    main(config_base_path, config_path)
+    main(config_base_path=args.config_base_path, config_path=args.config_path)
+    

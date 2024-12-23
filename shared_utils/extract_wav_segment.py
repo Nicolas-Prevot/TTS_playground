@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 from loguru import logger
 
@@ -36,18 +37,85 @@ def extract_audio_segment(input_file, start_time, duration, output_file, ffmpeg_
     logger.success(f"Successfully created {output_file}")
 
 
+def parse_arguments() -> argparse.Namespace:
+
+    parser = argparse.ArgumentParser(
+        description="Extract and normalize a segment from an audio file using ffmpeg.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument(
+        '--input-file',
+        type=Path,
+        required=True,
+        help="Path to the input audio file (e.g., .wav, .m4a)."
+    )
+
+    parser.add_argument(
+        '--output-file',
+        type=Path,
+        default="data/raw_audio/output_cut.wav",
+        help="Path to save the extracted audio segment (e.g., output_cut.wav)."
+    )
+
+    parser.add_argument(
+        '--final-output-file',
+        type=Path,
+        default="data/raw_audio/output_cutnorm.wav",
+        help="Path to save the normalized audio file (e.g., output_cutnorm.wav)."
+    )
+
+    parser.add_argument(
+        '--start-time',
+        type=float,
+        default=0.0,
+        help="Start time in seconds for the audio segment extraction."
+    )
+
+    parser.add_argument(
+        '--duration',
+        type=float,
+        default=30.0,
+        help="Duration in seconds of the audio segment to extract."
+    )
+
+    parser.add_argument(
+        '--target-db',
+        type=float,
+        default=-20.0,
+        help="Target dB level for audio normalization."
+    )
+
+    parser.add_argument(
+        '--ffmpeg-path',
+        type=str,
+        default='ffmpeg',
+        help="Path to the ffmpeg executable. Defaults to 'ffmpeg' if in PATH."
+    )
+
+    return parser.parse_args()
+
+
+def main(input_wav, extracted_wav, final_wav, start, length, target_db, ffmpeg_path='ffmpeg'):
+
+    extract_audio_segment(input_wav, start, length, extracted_wav, ffmpeg_path=ffmpeg_path)
+    normalize_audio(extracted_wav, final_wav, target_db=target_db, ffmpeg_path=ffmpeg_path)
+
+
 if __name__ == "__main__":
 
-    input_wav = "data/raw_audio/output.wav"
-    input_wav = "data/raw_audio/tom.m4a"
-    start = 0.0
-    length = 20
-    target_db = -20
-    extracted_wav = "data/raw_audio/output_cut.wav"
-    final_wav = "data/raw_audio/output_cutnorm.wav"
-    ffmpeg_executable = "ffmpeg"
+    args = parse_arguments()
+    logger.debug(f"Received arguments: {args}")
 
-    extract_audio_segment(input_wav, start, length, extracted_wav, ffmpeg_path=ffmpeg_executable)
-    normalize_audio(extracted_wav, final_wav, target_db=target_db, ffmpeg_path=ffmpeg_executable)
+    main(input_wav=args.input_file,
+         extracted_wav=args.output_file,
+         final_wav=args.final_output_file,
+         start=args.start_time,
+         length=args.duration,
+         target_db=args.target_db,
+         ffmpeg_path=args.ffmpeg_path,
+        )
+
+    
 
     

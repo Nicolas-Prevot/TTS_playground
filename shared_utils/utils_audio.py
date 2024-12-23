@@ -3,6 +3,7 @@ from loguru import logger
 from pathlib import Path
 import re
 
+
 def run_ffmpeg_command(ffmpeg_cmd):
     """
     Run an ffmpeg command using subprocess and handle errors.
