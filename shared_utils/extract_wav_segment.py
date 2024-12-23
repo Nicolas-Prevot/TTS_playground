@@ -1,26 +1,7 @@
 from pathlib import Path
-import subprocess
 from loguru import logger
 
-
-def run_ffmpeg_command(ffmpeg_cmd):
-    """
-    Run an ffmpeg command using subprocess and handle errors.
-
-    Parameters:
-        ffmpeg_cmd (list[str]): The ffmpeg command and arguments as a list.
-
-    Raises:
-        RuntimeError: If the ffmpeg command fails.
-    """
-    logger.debug(f"Running command: {' '.join(ffmpeg_cmd)}")
-    result = subprocess.run(ffmpeg_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-
-    if result.returncode != 0:
-        logger.error(f"ffmpeg command failed with error:\n{result.stderr}")
-        raise RuntimeError(f"ffmpeg command failed: {result.stderr.strip()}")
-    else:
-        logger.debug("ffmpeg command completed successfully.")
+from .utils_audio import run_ffmpeg_command, normalize_audio
 
 
 def extract_audio_segment(input_file, start_time, duration, output_file, ffmpeg_path='ffmpeg'):
@@ -37,18 +18,16 @@ def extract_audio_segment(input_file, start_time, duration, output_file, ffmpeg_
     input_file = Path(input_file)
     output_file = Path(output_file)
 
-    # Ensure the input file exists
     if not input_file.is_file():
         logger.error(f"Input file not found: {input_file}")
         raise FileNotFoundError(f"Input file not found: {input_file}")
 
-    # Prepare ffmpeg command
     ffmpeg_cmd = [
         ffmpeg_path,
+        '-y',
         '-ss', str(start_time),
         '-t', str(duration),
         '-i', str(input_file),
-        #'-acodec', 'copy',  # Copy audio codec to avoid re-encoding (if compatible)
         str(output_file)
     ]
 
@@ -58,16 +37,17 @@ def extract_audio_segment(input_file, start_time, duration, output_file, ffmpeg_
 
 
 if __name__ == "__main__":
-    # Example usage - adjust as needed.
-    input_wav = "data/raw_audio/output.wav"
-    start = 0.0
-    length = 4.1
-    output_wav = "data/ref/squeezie.wav"
 
-    # If needed, specify a custom ffmpeg path
+    input_wav = "data/raw_audio/output.wav"
+    input_wav = "data/raw_audio/tom.m4a"
+    start = 0.0
+    length = 20
+    target_db = -20
+    extracted_wav = "data/raw_audio/output_cut.wav"
+    final_wav = "data/raw_audio/output_cutnorm.wav"
     ffmpeg_executable = "ffmpeg"
 
-    try:
-        extract_audio_segment(input_wav, start, length, output_wav, ffmpeg_path=ffmpeg_executable)
-    except Exception as e:
-        logger.exception(f"An error occurred: {e}")
+    extract_audio_segment(input_wav, start, length, extracted_wav, ffmpeg_path=ffmpeg_executable)
+    normalize_audio(extracted_wav, final_wav, target_db=target_db, ffmpeg_path=ffmpeg_executable)
+
+    
