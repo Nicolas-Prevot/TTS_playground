@@ -1,0 +1,35 @@
+vocab_file: ""
+save_chunk: !!bool false
+remove_silence: false
+
+hf_cache_dir: "D:/.hf_cache"
+
+vocoder_name: vocos  # vocos or bigvgan
+vocoder_is_local: false
+vocoder_local_path: ""
+
+model: "F5-TTS"
+model_cfg:  # loaded after if empty
+ckpt_file: ""
+
+gen_text: "Here we generate something just for test."
+gen_file: ""
+gen_json: 
+
+output_dir: "tests"
+output_file: "infer_result.wav"
+
+user_target_rms: 0.1
+user_cross_fade_duration: 0.15
+user_nfe_step: 32
+user_cfg_strength: 2.0
+user_sway_sampling_coef: -1.0
+user_speed: 1.0
+user_fix_duration: 
+
+
+voices:
+  main:
+    ref_audio: "data/ref/basic_ref_en.wav"
+    ref_text: "Some call me nature, others call me mother nature."
+    ref_file: ""
