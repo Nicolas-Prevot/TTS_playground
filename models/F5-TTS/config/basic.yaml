@@ -1,5 +1,5 @@
 remove_silence: false
-user_speed: 1.3
+user_speed: 1.0
 
 output_dir: "data/gen"
 output_file: "infer_cli_basic3.wav"
