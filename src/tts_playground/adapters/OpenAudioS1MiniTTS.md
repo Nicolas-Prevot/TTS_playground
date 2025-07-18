@@ -4,9 +4,46 @@
 
 OpenAudio S1-mini is a state-of-the-art open TTS model from FishAudio, representing a distilled version of their flagship S1 model. It uses a large-scale Transformer (LLM-based) architecture – specifically built on Qwen-3 (an LLM) adapted for TTS. The full S1 is 4B parameters (not publicly released) and S1-mini is 0.5B (500M) parameters. It is a multilingual, multi-speaker model with advanced capabilities. S1-mini was trained on >2 million hours of audio across 13 languages, and further fine-tuned with RLHF (reinforcement learning from human feedback) for natural voice quality. The model treats TTS as a sequence-to-sequence task with text and special tokens as input and audio tokens as output, leveraging an integrated audio codec (Descript-like) for speech generation.
 
+## Usage Instructions
+
+```bash
+huggingface-cli download fishaudio/openaudio-s1-mini --local-dir checkpoints/openaudio-s1-mini
+# copy fish_speech/configs/modded_dac_vq.yaml from https://github.com/fishaudio/fish-speech to configs/openaudio-s1-mini/modded_dac_vq.yaml
+uv sync --extra fishaudio
+```
+
+Example usage:
+```python
+tts = OpenAudioS1MiniAdapter(
+    llama_checkpoint_dir="checkpoints/openaudio-s1-mini",
+    codec_checkpoint_path="checkpoints/openaudio-s1-mini/codec.pth",
+    decoder_config_name="modded_dac_vq",
+    device="cuda",      # or "cpu"
+    half=False,         # use float32
+)
+
+tts.load_model()
+
+tts.clone_voice("data/ref/basic_ref_en.wav",
+                ref_text="Some call me nature, others call me mother nature.")
+
+english_bytes = tts.synthesize(
+    "(shouting)I don't really care what you call me. (shouting)I've been a silent spectator, "
+    "watching species evolve, empires rise and fall. (shouting)But always remember, "
+    "I am mighty and enduring, (laughing) Ha,ha,ha!",
+    max_new_tokens=0,
+    top_p=0.9,
+    repetition_penalty=1.1,
+    temperature=0.8
+)
+
+with open("data/gen/test_s1_eng2.wav", "wb") as f:
+    f.write(english_bytes)
+```
+
 ## Voice Cloning: Yes
 
-OpenAudio S1 supports rapid zero-shot voice cloning. You can clone a voice by providing 10–30 seconds of reference audio. It will closely imitate the speaker’s voice, including timbre and speaking style. The cloning is very high-quality – the model’s training on diverse speakers and the RLHF tuning allow it to capture nuances of the reference voice. Notably, S1 can perform cross-lingual voice cloning: you can input a speaker’s sample in one language and have it speak text in another language while preserving the voice identity. (For example, clone an English speaker and have them speak Japanese.) In evaluations, OpenAudio’s voice similarity (“speaker distance”) is better than most open models. Cloning is done by feeding the reference audio to the model (the exact interface depends on the integration, e.g. through their UI or a prompt token).
+OpenAudio S1 supports rapid zero-shot voice cloning. You can clone a voice by providing 30–45 seconds of reference audio (Best: 2-3 15-20s clips forming a complete paragraph). It will closely imitate the speaker’s voice, including timbre and speaking style. The cloning is very high-quality – the model’s training on diverse speakers and the RLHF tuning allow it to capture nuances of the reference voice. Notably, S1 can perform cross-lingual voice cloning: you can input a speaker’s sample in one language and have it speak text in another language while preserving the voice identity. (For example, clone an English speaker and have them speak Japanese.) In evaluations, OpenAudio’s voice similarity (“speaker distance”) is better than most open models. Cloning is done by feeding the reference audio to the model (the exact interface depends on the integration, e.g. through their UI or a prompt token).
 
 # Languages: Multilingual (13 languages)
 

@@ -4,6 +4,32 @@
 
 Kyutai TTS is a recently open-sourced real-time streaming TTS model. It is a Transformer-based architecture with separate text and audio token streams (a form of multimodal/dual-stream model) enabling it to start speaking before the full text is seen. The model has 1.6 billion parameters. It uses a custom “Mimi” audio codec to convert audio to discrete tokens, and the transformer generates audio tokens on-the-fly from incoming text tokens with only ~220 ms latency. Notably, Kyutai TTS was trained on a massive 2.5 million hours of audio (transcribed via Whisper). It is designed for real-time conversations – e.g., it powers Kyutai’s chat assistant “Moshi” with instantaneous TTS responses.
 
+## Usage Instructions
+
+```bash
+uv sync --extra kyutai
+```
+
+Example usage:
+```python
+tts = KyutaiTTSAdapter(
+    hf_repo="kyutai/tts-1.6b-en_fr",
+    n_q=32,
+    temp=0.6,
+    cfg_coef=1.0,
+    device="cuda"
+)
+
+tts.load_model()
+
+tts.clone_voice("vctk/p225_023.wav")
+
+audio_en = tts.synthesize("I don't really care what you call me. I've been a silent spectator,watching species evolve, empires rise and fall. But always remember, I am mighty and enduring")
+
+with open("data/gen/testkyutai_en.wav", "wb") as f:
+    f.write(audio_en)
+```
+
 ## Voice Cloning: No
 
 Kyutai TTS can perform voice cloning from a ~10 second reference clip. It will mimic the speaker’s voice, intonation, and even recording characteristics (“mic quality”) in generated speech. However, to prevent misuse, the developers did not release the part of the model that allows arbitrary voice embedding generation. Instead, the open model only accepts voice embeddings from a preset collection of voices or newly donated voices. In practice, this means you can only clone voices that Kyutai provides (from public datasets) or you can contribute your own voice via their tool to get an embedding. Cloning random third-party voices is not directly enabled in the open release (as a security measure).

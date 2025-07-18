@@ -4,6 +4,24 @@
 
 Kokoro is an ultra-lightweight TTS model (only 82 million parameters total). It follows the StyleTTS 2 architecture (non-autoregressive acoustic model) with an iSTFTNet neural vocoder. The model is multilingual and multi-speaker, but does not use zero-shot cloning. Instead, Kokoro comes with a set of learned voice embeddings (“voice tokens”) for a library of speakers. At runtime you pick one of the provided voices. This design keeps the model small and efficient – it can generate speech faster than real time even on modest hardware. Training was done on <1000 hours of permissively licensed data, making Kokoro inexpensive to train (≈$1k on A100 GPUs).
 
+```bash
+uv sync --extra kokoro
+```
+
+Example usage:
+```python
+tts = KokoroTTSAdapter()
+
+tts.load_model()
+
+tts.clone_voice(lang_code="a", voice="af_bella")
+
+audio_bytes = tts.synthesize("I don't really care what you call me. I've been a silentspectator, watching species evolve, empires rise and fall. But always remember, I am mightyand enduring.", speed=1.0)
+
+with open("data/gen/testkokoro.wav", "wb") as f:
+    f.write(audio_bytes)
+```
+
 ## Voice Cloning: No
 
 Kokoro does not support arbitrary voice cloning from a new sample. You cannot input a random speaker’s voice; instead you choose from the built-in voices. Each voice is represented by a learned embedding vector. These voices were “curated and effective” and cover a variety of genders, accents, and languages. (The model’s focus is efficiency and simplicity, foregoing zero-shot cloning to keep size small.)
