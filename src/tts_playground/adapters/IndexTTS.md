@@ -1,11 +1,44 @@
-conda env create -f environment.yml
-conda activate index-tts
-
 # Index-TTS
 
 ## Overview/Architecture
 
 IndexTTS is a GPT-style TTS system combining ideas from XTTS and Tortoise-TTS. It uses a Transformer language model to generate discrete acoustic tokens, plus a Conformer encoder for the reference audio and a BigVGAN2 vocoder/decoder for waveform output. The architecture follows a hybrid codec approach: a VQVAE (dVAE) compresses audio into tokens, then a GPT-like model predicts those tokens from text (conditioned on speaker prompt). This yields high audio quality with faster inference than diffusion models. (It is optimized for industrial-level efficiency and controllability.)
+
+## Usage Instructions
+
+```bash
+huggingface-cli download IndexTeam/IndexTTS-1.5 config.yaml bigvgan_discriminator.pth bigvgan_generator.pth bpe.model dvae.pth gpt.pth unigram_12000.vocab --local-dir checkpoints/indextts
+conda env create -f environment_indextts.yml
+conda activate index-tts
+```
+
+Example usage:
+```python
+tts = IndexTTSAdapter(
+    model_dir="checkpoints/indextts",
+    cfg_path="checkpoints/indextts/config.yaml",
+    is_fp16=True,
+    device="cuda",  # "cpu"
+    use_cuda_kernel=True,  # set True if you built the custom CUDA ops
+    fast=False,  # standard (higher-quality) inference
+)
+
+tts.load_model()
+
+tts.clone_voice("data/gen/testkokoro.wav") # "data/ref/basic_ref_en.wav"
+
+wav_bytes = tts.synthesize(
+    "Hello, this is a demo of IndexTTS zero-shot voice cloning!",
+    do_sample=True,           # sampling-based decoding
+    top_p=0.9,                # nucleus sampling
+    temperature=0.7,          # more conservative sampling
+    num_beams=5,              # beam search width
+    fast=False                # set True for faster but lower-quality output
+)
+
+with open("data/gen/index_output_demok.wav", "wb") as f:
+    f.write(wav_bytes)
+```
 
 ## Voice Cloning: Yes
 

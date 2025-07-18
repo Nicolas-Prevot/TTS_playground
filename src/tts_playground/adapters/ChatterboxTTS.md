@@ -4,6 +4,30 @@
 
 Chatterbox is a transformer-based TTS model from Resemble AI, built on a 0.5B-parameter LLaMA decoder backbone. It’s autoregressive, producing speech from text (and optional audio prompt) with high stability due to alignment-informed inference. A HiFi-GAN variant (HiFT-GAN) is integrated as the vocoder. Outputs are watermarked at a perceptual level for ethical safeguards. The model was trained on 500k hours of cleaned speech, enabling very natural results.
 
+## Usage Instructions
+
+```bash
+uv sync --extra chatterbox
+```
+
+Example usage:
+```python
+tts = ChatterboxTTSAdapter()
+
+tts.load_model()
+
+tts.clone_voice("data/ref/basic_ref_en.wav")
+
+audio_bytes = tts.synthesize(
+    "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring.",
+    cfg_weight=0.5,
+    exaggeration=0.5,
+)
+
+with open("data/gen/output_classic.wav", "wb") as f:
+    f.write(audio_bytes)
+```
+
 ## Voice Cloning: Yes
 
 Chatterbox supports zero-shot voice cloning. It can clone any voice from ~5 seconds of reference audio, capturing the speaker’s timbre, accent and intonation. The user provides a short audio sample (“audio_prompt”) and the model will generate new speech in that voice. This model was explicitly designed for high-quality voice mimicry and is often preferred over ElevenLabs in blind tests.
