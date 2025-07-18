@@ -90,7 +90,6 @@ class F5TTSAdapter(BaseTTS):
         # if self.model_name != "F5TTS_Base":
         #     assert self.vocoder_name == model_cfg.model.mel_spec.mel_spec_type
 
-        # override for previous models
         if self.model_name == "F5TTS_Base":
             if self.vocoder_name == "vocos":
                 ckpt_step = 1200000
@@ -113,7 +112,6 @@ class F5TTSAdapter(BaseTTS):
             vocab_file=self.vocab_file,
             device=self.device,
         )
-        # sample rate is fixed to 24 kHz in utils_infer
         self.sr = 24000
     
     def synthesize(self, 
@@ -128,13 +126,6 @@ class F5TTSAdapter(BaseTTS):
                    fix_duration: float = None,
                    device: str     = None,
         ) -> bytes:
-        """
-        Synthesize `text` (or the default gen_text) using either:
-          - supplied ref_audio & ref_text, or
-          - the last clone_voice() sample, or
-          - the config’s default ref_audio/ref_text.
-        Returns raw WAV bytes.
-        """
         if self.model is None or self.vocoder is None:
             raise RuntimeError("Model not loaded; call load_model() first.")
         
@@ -161,13 +152,9 @@ class F5TTSAdapter(BaseTTS):
             mel_spec_type = self.vocoder_name,
             **params
         )
-        # encode as WAV bytes
         return self._wav_to_bytes(wav_np, sr)
     
     def clone_voice(self, ref_audio: str = None, ref_text: str = None):
-        """
-        Cache a reference sample for subsequent calls to synthesize().
-        """
         self._ref_audio_prep, self._ref_text_prep = preprocess_ref_audio_text(ref_audio, ref_text)
         return True
     
@@ -179,22 +166,22 @@ if __name__ == "__main__":
 
     # vocos   + E2TTS_Small No / E2TTS_Base Yes / F5TTS_Base Yes / F5TTS_Small No / F5TTS_v1_Base Yes
     # bigvgan + E2TTS_Small No / E2TTS_Base No  / F5TTS_Base Yes / F5TTS_Small No / F5TTS_v1_Base No
-    adapter = F5TTSAdapter(
+    tts = F5TTSAdapter(
         model_name="F5TTS_v1_Base",
         vocoder_name="vocos",  #  bigvgan  vocos
     )
 
-    adapter.load_model()
+    tts.load_model()
 
-    adapter.clone_voice(
+    tts.clone_voice(
         "data/ref/basic_ref_en.wav",
         "Some call me nature, others call me mother nature."
     )
-    audio_bytes = adapter.synthesize(
+    audio_bytes = tts.synthesize(
         text="I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring.",
         speed=1.0,)
 
     with open("data/gen/test.wav", "wb") as f:
         f.write(audio_bytes)
 
-    adapter.remove_silence_for_generated_wav("data/gen/test.wav")
+    tts.remove_silence_for_generated_wav("data/gen/test.wav")
