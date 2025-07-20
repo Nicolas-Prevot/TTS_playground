@@ -2,33 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TTS Model Voice‑Cloning Samples</title>
+  <title>TTS Voice‑Cloning Samples</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #888; padding: 8px; text-align: center; }
-    audio { width: 200px; }
+    /* --- Base reset & typography --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6; background: #f0f2f5; color: #333;
+    }
+    .container {
+      max-width: 1000px; margin: 2rem auto; padding: 0 1rem;
+    }
+    h1 {
+      text-align: center; margin-bottom: 1.5rem; font-size: 2rem;
+      color: #222;
+    }
+    h2 {
+      margin: 2rem 0 1rem; font-size: 1.5rem; color: #444;
+    }
+
+    /* --- Grid of cards per reference sample --- */
+    .reference-group {
+      margin-bottom: 3rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive cards */  /* MDN Grid Layout turn0search16 */
+      gap: 1rem;
+    }
+
+    /* --- Card styling --- */
+    .card {
+      background: #fff; border-radius: 0.5rem; /* Modern rounded corners */  /* CSS‑Tricks modern tables turn0search8 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);  /* Subtle shadow */
+      padding: 1rem; text-align: center;
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .card:hover {
+      transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .card h3 {
+      font-size: 1.1rem; margin-bottom: 0.75rem; color: #222;
+    }
+
+    /* --- Audio control styling --- */
+    audio {
+      width: 100%;     /* Full‑width player */  /* StackOverflow responsive audio turn0search7 */
+      outline: none;
+      margin-top: 0.5rem;
+    }
+
+    /* --- Footer / small print --- */
+    footer {
+      text-align: center; font-size: 0.9rem; color: #666;
+      margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #ddd;
+    }
   </style>
 </head>
 <body>
-  <h1>Voice‑Cloning Samples</h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Reference</th>
-        <!--<th>F5‑TTS</th>-->
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <th><audio controls><source src="./samples/basic_ref_en.wav" type="audio/wav"></audio></th>
-        <!--<td><audio controls><source src="../data/gen/test.wav" type="audio/wav"></audio></td>-->
-        <!--<td><audio controls><source src="gen/ChatterboxTTS/basic_ref1.wav" type="audio/wav"></audio></td>-->
-        <!--<td><audio controls><source src="gen/Index-TTS/basic_ref1.wav" type="audio/wav"></audio></td>-->
-        <!--<td><audio controls><source src="gen/Kokoro82M/basic_ref1.wav" type="audio/wav"></audio></td>-->
-        <!--<td><audio controls><source src="gen/KyutaiTTS/basic_ref1.wav" type="audio/wav"></audio></td>-->
-        <!--<td><audio controls><source src="gen/OpenAudioS1-mini/basic_ref1.wav" type="audio/wav"></audio></td>-->
-      </tr>
-    </tbody>
-  </table>
+  <div class="container">
+    <h1>🎙️ TTS Voice‑Cloning Samples</h1>
+
+    <section class="reference-group">
+      <h2>Reference: <code>basic_ref_en.wav</code></h2>
+      <div class="grid">
+        <div class="card">
+          <h3>F5‑TTS</h3>
+          <audio controls src="./samples/basic_ref_en.wav"></audio>
+        </div>
+      </div>
+    </section>
+
+  </div>
 </body>
 </html>
