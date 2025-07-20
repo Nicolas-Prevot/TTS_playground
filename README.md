@@ -2,6 +2,8 @@
 
  uv venv --seed
 
+ [🎧 Samples Page](https://Nicolas-Prevot.github.io/TTS_playground/tts_samples.html)
+
 
 | Model           | Voice Cloning | Clone Details (Seconds/Features)                  | Prebuilt Voices / Link                      | Languages                  | Emotion Control                    | Model Size    | Architecture Overview                                                                                  |
 |-----------------|----------------|--------------------------------------------------|---------------------------------------------|----------------------------|------------------------------------|----------------|---------------------------------------------------------------------------------------------------------|
