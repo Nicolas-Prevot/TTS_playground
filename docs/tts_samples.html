@@ -49,13 +49,16 @@
       overflow-x: auto;
       margin-bottom: 2rem;
       border-radius: 0.5rem;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+      box-shadow: 0 2px 12px rgba(218, 194, 194, 0.05);
     }
     table {
       width: 100%;
       border-collapse: collapse;
       background: var(--surface);
+      table-layout: fixed;
     }
+    .fixed-6 th, .fixed-6 td { width: calc(100% / 6); }
+    .fixed-5 th, .fixed-5 td { width: calc(100% / 5); }
     thead {
       background: var(--primary);
       color: #fff;
@@ -64,6 +67,7 @@
       padding: 0.75rem 1rem;
       text-align: center;
       border-bottom: 1px solid var(--border);
+      word-wrap: break-word;
     }
     th {
       font-weight: 600;
@@ -209,44 +213,44 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>Ellie_Bishop.wav</code><audio controls src="./samples/en/Ellie_Bishop/ref.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ellie_Bishop/chatterbox.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ellie_Bishop/f5tts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ellie_Bishop/higgsaudio.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ellie_Bishop/indextts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ellie_Bishop/openaudios1mini.wav"></audio></td>
+              <td><code>Ellie_Bishop.wav</code><audio controls src="./samples/fr/Ellie_Bishop/ref.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ellie_Bishop/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ellie_Bishop/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ellie_Bishop/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ellie_Bishop/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ellie_Bishop/openaudios1mini.wav"></audio></td>
             </tr>
             <tr>
-              <td><code>Emmanuel_Macron.wav</code><audio controls src="./samples/en/Emmanuel_Macron/ref.wav"></audio></td>
-              <td><audio controls src="./samples/en/Emmanuel_Macron/chatterbox.wav"></audio></td>
-              <td><audio controls src="./samples/en/Emmanuel_Macron/f5tts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Emmanuel_Macron/higgsaudio.wav"></audio></td>
-              <td><audio controls src="./samples/en/Emmanuel_Macron/indextts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Emmanuel_Macron/openaudios1mini.wav"></audio></td>
+              <td><code>Emmanuel_Macron.wav</code><audio controls src="./samples/fr/Emmanuel_Macron/ref.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Emmanuel_Macron/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Emmanuel_Macron/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Emmanuel_Macron/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Emmanuel_Macron/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Emmanuel_Macron/openaudios1mini.wav"></audio></td>
             </tr>
             <tr>
-              <td><code>Jean_Dujardin.wav</code><audio controls src="./samples/en/Jean_Dujardin/ref.wav"></audio></td>
-              <td><audio controls src="./samples/en/Jean_Dujardin/chatterbox.wav"></audio></td>
-              <td><audio controls src="./samples/en/Jean_Dujardin/f5tts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Jean_Dujardin/higgsaudio.wav"></audio></td>
-              <td><audio controls src="./samples/en/Jean_Dujardin/indextts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Jean_Dujardin/openaudios1mini.wav"></audio></td>
+              <td><code>Jean_Dujardin.wav</code><audio controls src="./samples/fr/Jean_Dujardin/ref.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Jean_Dujardin/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Jean_Dujardin/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Jean_Dujardin/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Jean_Dujardin/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Jean_Dujardin/openaudios1mini.wav"></audio></td>
             </tr>
             <tr>
-              <td><code>Louis_de_Funes.wav</code><audio controls src="./samples/en/Louis_de_Funes/ref.wav"></audio></td>
-              <td><audio controls src="./samples/en/Louis_de_Funes/chatterbox.wav"></audio></td>
-              <td><audio controls src="./samples/en/Louis_de_Funes/f5tts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Louis_de_Funes/higgsaudio.wav"></audio></td>
-              <td><audio controls src="./samples/en/Louis_de_Funes/indextts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Louis_de_Funes/openaudios1mini.wav"></audio></td>
+              <td><code>Louis_de_Funes.wav</code><audio controls src="./samples/fr/Louis_de_Funes/ref.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Louis_de_Funes/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Louis_de_Funes/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Louis_de_Funes/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Louis_de_Funes/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Louis_de_Funes/openaudios1mini.wav"></audio></td>
             </tr>
             <tr>
-              <td><code>Ziva.wav</code><audio controls src="./samples/en/Ziva/ref.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ziva/chatterbox.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ziva/f5tts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ziva/higgsaudio.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ziva/indextts.wav"></audio></td>
-              <td><audio controls src="./samples/en/Ziva/openaudios1mini.wav"></audio></td>
+              <td><code>Ziva.wav</code><audio controls src="./samples/fr/Ziva/ref.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ziva/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ziva/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ziva/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ziva/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/fr/Ziva/openaudios1mini.wav"></audio></td>
             </tr>
           </tbody>
         </table>
@@ -328,7 +332,7 @@
           <tbody>
             <tr>
               <td><audio controls src="./samples/kyutai/fr/1591_1028_000108-0004_1.wav"></audio></td>
-              <td><audio controls src="./samples/kyutai/fr/12080_11650_00047-0001_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/fr/12080_11650_000047-0001_1.wav"></audio></td>
               <td><audio controls src="./samples/kyutai/fr/degaulle-2_1.wav"></audio></td>
               <td><audio controls src="./samples/kyutai/fr/fabieng-enhanced-v2_1.wav"></audio></td>
             </tr>
