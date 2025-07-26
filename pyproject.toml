@@ -11,6 +11,7 @@ requires-python = ">=3.12,<3.13"
 readme = "README.md"
 dependencies = [
     "soundfile>=0.13.1",
+    "loguru",
 ]
 
 [project.optional-dependencies]
@@ -23,6 +24,8 @@ f5 = [
 kokoro = [
     "kokoro>=0.9.4",
     "misaki[en]>=0.9.4",
+    "numpy==1.26.4",
+    "spacy==3.8.7",
     "torch",
     "torchaudio",
 ]
@@ -44,24 +47,48 @@ dia = [
     "transformers",
     "torch",
 ]
+higgsaudio = [
+    "accelerate>=0.26.0",
+    "boson-multimodal",
+    "dacite>=1.9.2",
+    "descript-audio-codec>=1.0.0",
+    "descript-audiotools>=0.7.2",
+    "jieba>=0.42.1",
+    "langid>=1.1.6",
+    "librosa>=0.11.0",
+    "loguru>=0.7.3",
+    "omegaconf>=2.4.0.dev3",
+    "pandas>=2.3.1",
+    "torch",
+    "torchaudio",
+    "tqdm>=4.67.1",
+    "transformers>=4.45.1,<4.47.0",
+    "vector-quantize-pytorch>=1.22.18",
+]
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-nightly", extra = "f5" },
-    { index = "pytorch-nightly", extra = "kokoro" },
-    { index = "pytorch-nightly", extra = "fishaudio" },
+    { index = "pytorch-cu128", extra = "f5" },
+    { index = "pytorch-cu128", extra = "kokoro" },
+    { index = "pytorch-cu128", extra = "fishaudio" },
     { index = "pytorch-cu128", extra = "kyutai" },
     { index = "pytorch-cu128", extra = "dia" },
+    { index = "pytorch-cu128", extra = "higgsaudio" },
 ]
 torchaudio = [
-    { index = "pytorch-nightly", extra = "f5" },
-    { index = "pytorch-nightly", extra = "kokoro" },
-    { index = "pytorch-nightly", extra = "fishaudio" },
+    { index = "pytorch-cu128", extra = "f5" },
+    { index = "pytorch-cu128", extra = "kokoro" },
+    { index = "pytorch-cu128", extra = "fishaudio" },
     { index = "pytorch-cu128", extra = "kyutai" },
+    { index = "pytorch-cu128", extra = "higgsaudio" },
 ]
 fish-speech = { git = "https://github.com/fishaudio/fish-speech.git" }
-transformers = { git = "https://github.com/huggingface/transformers.git"}
+transformers = [
+  { index = "pypi", extra = "higgsaudio" },
+  { git   = "https://github.com/huggingface/transformers.git", extra = "dia" },
+]
 indextts = { git = "https://github.com/index-tts/index-tts.git"}
+boson-multimodal = { git = "https://github.com/boson-ai/higgs-audio.git"}
 
 [[tool.uv.index]]
 name = "pytorch-nightly"
@@ -87,5 +114,6 @@ conflicts = [
       { extra = "fishaudio" },
       { extra = "chatterbox" },
       { extra = "dia" },
+      { extra = "higgsaudio" },
     ],
 ]
