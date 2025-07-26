@@ -1,12 +1,12 @@
 # TTS Playground
 
- uv venv --seed
+uv venv --seed
 
  [🎧 Samples Page](https://Nicolas-Prevot.github.io/TTS_playground/tts_samples.html)
 
 
-| Model           | Voice Cloning | Clone Details (Seconds/Features)                  | Prebuilt Voices / Link                      | Languages                  | Emotion Control                    | Model Size    | Architecture Overview                                                                                  |
-|-----------------|----------------|--------------------------------------------------|---------------------------------------------|----------------------------|------------------------------------|----------------|---------------------------------------------------------------------------------------------------------|
+| Model           | Voice Cloning | Clone Details (Seconds/Features)                  | Prebuilt Voices / Link                      | Languages                  | Emotion Control                    | Model Size    |
+|-----------------|----------------|--------------------------------------------------|---------------------------------------------|----------------------------|------------------------------------|----------------|
 | **F5-TTS**      | ✅ Yes          | ~15s, clones timbre, accent, intonation          | N/A                                         | English, Chinese           | ❌ No                              | ~335M          | Non-autoregressive diffusion (ConvNeXt2 + Transformer), flow matching, vocoder: Vocos                   |
 | **ChatterboxTTS** | ✅ Yes        | ~5s, clones timbre, accent, intonation           | N/A                                         | English only               | ✅ Exaggeration parameter    | ~500M          | Autoregressive transformer (LLaMA 0.5B), HiFi-GAN vocoder, alignment-informed inference                 |
 | **Index-TTS**   | ✅ Yes          | ~5-10s, clones timbre, accent, intonation        | N/A                                         | English, Chinese           | ❌ No                              | ~300-400M est. | Autoregressive GPT-style, Conformer encoder, BigVGAN2 vocoder, token-based generation                   |
