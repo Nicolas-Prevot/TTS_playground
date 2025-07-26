@@ -35,11 +35,11 @@ class ChatterboxTTSAdapter(BaseTTS):
         self.model = ChatterboxTTS.from_pretrained(device=self.device)
         self.sr = self.model.sr
 
-    def clone_voice(self, voice_sample: str):
+    def clone_voice(self, ref_audio: str):
 
-        if not os.path.isfile(voice_sample):
-            raise FileNotFoundError(f"Voice sample not found: {voice_sample}")
-        self._cached_audio_prompt = voice_sample
+        if not os.path.isfile(ref_audio):
+            raise FileNotFoundError(f"Voice sample not found: {ref_audio}")
+        self._cached_audio_prompt = ref_audio
         return True
 
     def synthesize(

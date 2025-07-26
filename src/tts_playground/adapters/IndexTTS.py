@@ -76,10 +76,10 @@ class IndexTTSAdapter(BaseTTS):
 
         self.sr = 24000
 
-    def clone_voice(self, voice_sample: str):
-        if not os.path.isfile(voice_sample):
-            raise FileNotFoundError(f"Voice sample not found: {voice_sample}")
-        self._audio_prompt = voice_sample
+    def clone_voice(self, ref_audio: str):
+        if not os.path.isfile(ref_audio):
+            raise FileNotFoundError(f"Voice sample not found: {ref_audio}")
+        self._audio_prompt = ref_audio
         self.model.cache_cond_mel = None
         return True
 
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     tts.load_model()
 
-    tts.clone_voice("data/gen/testkokoro.wav") # "data/ref/basic_ref_en.wav"
+    tts.clone_voice(ref_audio="data/gen/testkokoro.wav") # "data/ref/basic_ref_en.wav"
 
     wav_bytes = tts.synthesize(
         "Hello, this is a demo of IndexTTS zero-shot voice cloning!",

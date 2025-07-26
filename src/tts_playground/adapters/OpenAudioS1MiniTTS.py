@@ -90,18 +90,34 @@ class OpenAudioS1MiniAdapter(BaseTTS):
             precision=precision,
             compile=self.compile,
         )
+        from types import MethodType
+        device_to = self.device
+        orig_setup = self.semantic_model.setup_caches
+        def setup_and_move(model_self, max_batch_size, max_seq_len, dtype, *args, **kwargs):
+            # 1) run the original CPU‐only cache setup
+            result = orig_setup(max_batch_size, max_seq_len, dtype, *args, **kwargs)
+            # 2) relocate every kv_cache in every layer to our GPU
+            for module in model_self.modules():
+                if hasattr(module, "kv_cache"):
+                    module.kv_cache = module.kv_cache.to(device_to)
+            return result
+        # replace the instance method
+        self.semantic_model.setup_caches = MethodType(setup_and_move, self.semantic_model)
+
+        # invoke it (will allocate *and* move to GPU)
         self.semantic_model.setup_caches(
             max_batch_size=1,
             max_seq_len=self.semantic_model.config.max_seq_len,
             dtype=next(self.semantic_model.parameters()).dtype,
         )
+
         logger.info("[semantic] Loaded DualARTransformer for text2semantic")
 
-    def clone_voice(self, voice_sample: str, ref_text: str = None):
-        if not os.path.isfile(voice_sample):
-            raise FileNotFoundError(f"Reference audio not found: {voice_sample}")
+    def clone_voice(self, ref_audio: str, ref_text: str = None):
+        if not os.path.isfile(ref_audio):
+            raise FileNotFoundError(f"Reference audio not found: {ref_audio}")
 
-        wav, sr_orig = torchaudio.load(voice_sample)
+        wav, sr_orig = torchaudio.load(ref_audio)
         if wav.size(0) > 1:
             wav = wav.mean(dim=0, keepdim=True)
         if sr_orig != self.sr:
@@ -110,7 +126,7 @@ class OpenAudioS1MiniAdapter(BaseTTS):
         wav = wav.to(self.device).unsqueeze(0)  # (1,1,T)
         lengths = torch.tensor([wav.size(-1)], device=self.device)
         indices, lengths = self.codec_model.encode(wav, lengths)
-        indices = indices.squeeze(0).cpu().long()
+        indices = indices.squeeze(0).long().to(self.device)
         self.prompt_tokens = [indices]
 
         if ref_text is not None:
@@ -191,7 +207,7 @@ if __name__ == "__main__":
         half=False,         # use float32
     )
     tts.load_model()
-    tts.clone_voice("data/ref/basic_ref_en.wav",
+    tts.clone_voice(ref_audio="data/ref/basic_ref_en.wav",
                     ref_text="Some call me nature, others call me mother nature.")
 
     english_bytes = tts.synthesize(
