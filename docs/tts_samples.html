@@ -2,75 +2,338 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TTS Voice‑Cloning Samples</title>
+  <title>🎙️ TTS Voice‑Cloning Samples</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* --- Base reset & typography --- */
+    /* --- Color Palette & Variables --- */
+    :root {
+      --bg: #f9fbfe;
+      --surface: #ffffff;
+      --primary: #4f46e5;
+      --accent: #10b981;
+      --text: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+    }
+
+    /* --- Reset & Base Typography --- */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      line-height: 1.6; background: #f0f2f5; color: #333;
+      line-height: 1.6;
     }
     .container {
-      max-width: 1000px; margin: 2rem auto; padding: 0 1rem;
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1rem;
     }
     h1 {
-      text-align: center; margin-bottom: 1.5rem; font-size: 2rem;
-      color: #222;
+      text-align: center;
+      margin-bottom: 2rem;
+      font-size: 2.5rem;
+      color: var(--primary);
+      font-weight: 700;
     }
     h2 {
-      margin: 2rem 0 1rem; font-size: 1.5rem; color: #444;
+      margin: 3rem 0 1rem;
+      font-size: 1.75rem;
+      color: var(--text);
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.5rem;
     }
 
-    /* --- Grid of cards per reference sample --- */
-    .reference-group {
-      margin-bottom: 3rem;
+    /* --- Table Styling --- */
+    .table-wrapper {
+      overflow-x: auto;
+      margin-bottom: 2rem;
+      border-radius: 0.5rem;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.05);
     }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive cards */  /* MDN Grid Layout turn0search16 */
-      gap: 1rem;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+    }
+    thead {
+      background: var(--primary);
+      color: #fff;
+    }
+    th, td {
+      padding: 0.75rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.05em;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tbody tr:hover {
+      background: rgba(79,70,229,0.05);
     }
 
-    /* --- Card styling --- */
-    .card {
-      background: #fff; border-radius: 0.5rem; /* Modern rounded corners */  /* CSS‑Tricks modern tables turn0search8 */
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);  /* Subtle shadow */
-      padding: 1rem; text-align: center;
-      transition: transform .2s ease, box-shadow .2s ease;
-    }
-    .card:hover {
-      transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    .card h3 {
-      font-size: 1.1rem; margin-bottom: 0.75rem; color: #222;
-    }
-
-    /* --- Audio control styling --- */
+    /* --- Audio Controls --- */
     audio {
-      width: 100%;     /* Full‑width player */  /* StackOverflow responsive audio turn0search7 */
-      outline: none;
-      margin-top: 0.5rem;
+      width: 100%;
+      border-radius: 0.25rem;
     }
 
-    /* --- Footer / small print --- */
+    /* --- Footer --- */
     footer {
-      text-align: center; font-size: 0.9rem; color: #666;
-      margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #ddd;
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 3rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎙️ TTS Voice‑Cloning Samples</h1>
+    <h1>🎙️ TTS Voice-Cloning Samples</h1>
 
-    <section class="reference-group">
-      <h2>Reference: <code>basic_ref_en.wav</code></h2>
-      <div class="grid">
-        <div class="card">
-          <h3>F5‑TTS</h3>
-          <audio controls src="./samples/basic_ref_en.wav"></audio>
-        </div>
+    <section>
+      <h2>English Voice-Cloning</h2>
+      <p>In the stillness of dawn, a whisper breaks the silence. Suddenly - boom! Thunder cracks across the sky. She runs, breath sharp, heart racing. Then, calm returns. A narrator’s voice cuts through: "This is only the beginning." Dramatic? Yes. But every story needs contrast—soft, loud, fast, slow. Let’s begin.</p>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Chatterbox</th>
+              <th>F5-TTS</th>
+              <th>HiggsAudio</th>
+              <th>Index-TTS</th>
+              <th>OpenAudioS1-mini</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>basic_ref_en.wav</code><audio controls src="./samples/en/basic_ref_en/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/basic_ref_en/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/basic_ref_en/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/basic_ref_en/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/basic_ref_en/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/basic_ref_en/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>belinda.wav</code><audio controls src="./samples/en/belinda/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/belinda/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/belinda/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/belinda/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/belinda/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/belinda/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Lucifer.wav</code><audio controls src="./samples/en/Lucifer/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucifer/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucifer/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucifer/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucifer/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucifer/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Lucy_Chen.wav</code><audio controls src="./samples/en/Lucy_Chen/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Lucy_Chen_2.wav</code><audio controls src="./samples/en/Lucy_Chen_2/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen_2/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen_2/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen_2/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen_2/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Lucy_Chen_2/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Rick.wav</code><audio controls src="./samples/en/Rick/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Rick/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Rick/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Rick/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Rick/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Rick/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>sheldon.wav</code><audio controls src="./samples/en/sheldon/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/sheldon/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/sheldon/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/sheldon/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/sheldon/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/sheldon/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>The_Rock.wav</code><audio controls src="./samples/en/The_Rock/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/The_Rock/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/The_Rock/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/The_Rock/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/The_Rock/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/The_Rock/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Tom_Holland.wav</code><audio controls src="./samples/en/Tom_Holland/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Tom_Holland/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Tom_Holland/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Tom_Holland/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Tom_Holland/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Tom_Holland/openaudios1mini.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>French Voice-Cloning</h2>
+      <p>Dans le silence de l’aube, un murmure fend l’air. Soudain — boum ! Le tonnerre éclate. Elle court, souffle court, cœur affolé. Puis, le calme revient. Une voix grave s’élève : « Ce n’est que le début. » Dramatique ? Oui. Mais toute histoire a besoin de contrastes. Allons-y.</p>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Reference</th>
+              <th>Chatterbox</th>
+              <th>F5-TTS</th>
+              <th>HiggsAudio</th>
+              <th>Index-TTS</th>
+              <th>OpenAudioS1-mini</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Ellie_Bishop.wav</code><audio controls src="./samples/en/Ellie_Bishop/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ellie_Bishop/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ellie_Bishop/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ellie_Bishop/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ellie_Bishop/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ellie_Bishop/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Emmanuel_Macron.wav</code><audio controls src="./samples/en/Emmanuel_Macron/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Emmanuel_Macron/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Emmanuel_Macron/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Emmanuel_Macron/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Emmanuel_Macron/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Emmanuel_Macron/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Jean_Dujardin.wav</code><audio controls src="./samples/en/Jean_Dujardin/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Jean_Dujardin/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Jean_Dujardin/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Jean_Dujardin/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Jean_Dujardin/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Jean_Dujardin/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Louis_de_Funes.wav</code><audio controls src="./samples/en/Louis_de_Funes/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Louis_de_Funes/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Louis_de_Funes/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Louis_de_Funes/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Louis_de_Funes/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Louis_de_Funes/openaudios1mini.wav"></audio></td>
+            </tr>
+            <tr>
+              <td><code>Ziva.wav</code><audio controls src="./samples/en/Ziva/ref.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ziva/chatterbox.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ziva/f5tts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ziva/higgsaudio.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ziva/indextts.wav"></audio></td>
+              <td><audio controls src="./samples/en/Ziva/openaudios1mini.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>Kokoro82M Preset Voices</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>af_bella</th>
+              <th>af_sarah</th>
+              <th>am_fenrir</th>
+              <th>bf_alice</th>
+              <th>bm_lewis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><audio controls src="./samples/kokoro/en/af_bella_1.wav"></audio></td>
+              <td><audio controls src="./samples/kokoro/en/af_sarah_1.wav"></audio></td>
+              <td><audio controls src="./samples/kokoro/en/am_fenrir_1.wav"></audio></td>
+              <td><audio controls src="./samples/kokoro/en/bf_alice_1.wav"></audio></td>
+              <td><audio controls src="./samples/kokoro/en/bm_lewis_1.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>ff_siwis</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><audio controls src="./samples/kokoro/fr/ff_siwis_1.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section>
+      <h2>KyutaiTTS Preset Voices</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>p228_023</th>
+              <th>p303_023</th>
+              <th>p304_023</th>
+              <th>p311_023</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><audio controls src="./samples/kyutai/en/p228_023_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/en/p303_023_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/en/p304_023_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/en/p311_023_1.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>1591_1028_000108-0004</th>
+              <th>12080_11650_00047-0001</th>
+              <th>degaulle-2</th>
+              <th>fabieng-enhanced-v2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><audio controls src="./samples/kyutai/fr/1591_1028_000108-0004_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/fr/12080_11650_00047-0001_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/fr/degaulle-2_1.wav"></audio></td>
+              <td><audio controls src="./samples/kyutai/fr/fabieng-enhanced-v2_1.wav"></audio></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
