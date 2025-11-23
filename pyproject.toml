@@ -12,6 +12,13 @@ readme = "README.md"
 dependencies = [
     "soundfile>=0.13.1",
     "loguru",
+    "pydantic>=2.9.2",
+    "fastapi>=0.116.1",
+    "uvicorn[standard]>=0.35.0",
+    "python-multipart>=0.0.20",
+    "httpx>=0.28.1",
+    "celery>=5.6.0b1",
+    "redis>=7.0.0b2",
 ]
 
 [project.optional-dependencies]
@@ -20,6 +27,8 @@ f5 = [
     "torchaudio",
     "f5-tts>=1.1.7",
     "bigvgan>=2.4.1",
+    "cached_path>=1.8.0",
+    "torchcodec"
 ]
 kokoro = [
     "kokoro>=0.9.4",
@@ -40,7 +49,9 @@ kyutai = [
     "torchaudio",
 ]
 chatterbox = [
-    "chatterbox-tts>=0.1.2",
+    "chatterbox-tts>=0.1.4",
+    "torch", # for chatterbox
+    "torchaudio", # for chatterbox
 ]
 dia = [
     "resampy>=0.4.3",
@@ -65,6 +76,16 @@ higgsaudio = [
     "transformers>=4.45.1,<4.47.0",
     "vector-quantize-pytorch>=1.22.18",
 ]
+indextts2 = [
+    "indextts",
+    "torch",
+    "torchaudio",
+]
+vibevoicetts = [
+    "vibevoice",
+    "torch",
+    "torchaudio",
+]
 
 [tool.uv.sources]
 torch = [
@@ -74,6 +95,9 @@ torch = [
     { index = "pytorch-cu128", extra = "kyutai" },
     { index = "pytorch-cu128", extra = "dia" },
     { index = "pytorch-cu128", extra = "higgsaudio" },
+    { index = "pytorch-cu128", extra = "indextts2" },
+    { index = "pytorch-cu128", extra = "vibevoicetts" },
+    { index = "pytorch-cu128", extra = "chatterbox" }, # for chatterbox
 ]
 torchaudio = [
     { index = "pytorch-cu128", extra = "f5" },
@@ -81,22 +105,23 @@ torchaudio = [
     { index = "pytorch-cu128", extra = "fishaudio" },
     { index = "pytorch-cu128", extra = "kyutai" },
     { index = "pytorch-cu128", extra = "higgsaudio" },
+    { index = "pytorch-cu128", extra = "indextts2" },
+    { index = "pytorch-cu128", extra = "vibevoicetts" },
+    { index = "pytorch-cu128", extra = "chatterbox" }, # for chatterbox
 ]
 fish-speech = { git = "https://github.com/fishaudio/fish-speech.git" }
 transformers = [
   { index = "pypi", extra = "higgsaudio" },
   { git   = "https://github.com/huggingface/transformers.git", extra = "dia" },
 ]
-indextts = { git = "https://github.com/index-tts/index-tts.git"}
+indextts = { url = "https://github.com/index-tts/index-tts/archive/refs/heads/main.zip"}
 boson-multimodal = { git = "https://github.com/boson-ai/higgs-audio.git"}
-
-[[tool.uv.index]]
-name = "pytorch-nightly"
-url = "https://download.pytorch.org/whl/nightly/cu128"
+vibevoice = { git = "https://github.com/vibevoice-community/VibeVoice.git" }
 
 [[tool.uv.index]]
 name = "pytorch-cu128"
 url = "https://download.pytorch.org/whl/cu128"
+explicit = true
 
 [[tool.uv.index]]
 name = "pypi"
@@ -115,5 +140,28 @@ conflicts = [
       { extra = "chatterbox" },
       { extra = "dia" },
       { extra = "higgsaudio" },
+      { extra = "indextts2" },
+      { extra = "vibevoicetts" },
     ],
 ]
+override-dependencies = [
+  "numba>=0.60,<0.61",
+  "llvmlite>=0.43,<0.44",
+  "numpy>=1.26.0,<2.0.0", # for chatterbox
+  "onnx>=1.14.0,<1.19.0", # for chatterbox
+  "torch>=2.9.0", # for chatterbox
+  "torchaudio>=2.9.0", # for chatterbox
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_playground"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/tts_playground",
+  "pyproject.toml",
+  "README.md",
+]
+
+[tool.uv.extra-build-dependencies] # for chatterbox
+pkuseg = ["numpy<2.0.0", "cython", "setuptools"] # for chatterbox

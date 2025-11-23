@@ -1,0 +1,25 @@
+FROM python:3.12-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    UV_SYSTEM_PYTHON=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates git ffmpeg libsndfile1 tini openfst build-essential gcc g++ \
+ && rm -rf /var/lib/apt/lists/*
+
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:$PATH"
+ENV HF_HOME=/cache/hf \
+    HF_HUB_CACHE=/cache/hf
+    
+WORKDIR /workspace
+COPY pyproject.toml README.md uv.lock /workspace/
+COPY src /workspace/src
+
+RUN uv pip install -e . --system
+
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["bash", "-lc", "celery -A tts_playground.tasks.celery_app.app worker -l INFO -Q tts.dynamic --concurrency=1 --prefetch-multiplier=1"]

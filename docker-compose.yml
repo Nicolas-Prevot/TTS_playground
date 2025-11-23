@@ -1,0 +1,52 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    container_name: 'tts_redis_broker'
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: 'tts_api_image'
+    container_name: 'tts_api_container'
+    environment:
+      UVICORN_HOST: 0.0.0.0
+      UVICORN_PORT: 7000
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      HF_HOME: /cache/hf
+      HF_HUB_CACHE: /cache/hf
+    ports: ["7000:7000"]
+    volumes:
+      - ${HF_CACHE_HOST_DIR}:/cache/hf
+    depends_on: [redis]
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    image: 'tts_worker_image'
+    container_name: 'tts_celery_worker'
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      RUNNER_VENVS_DIR: /workspace/venvs
+      IDLE_SECS: 180
+      EXIT_ON_IDLE: "1"
+      NVIDIA_VISIBLE_DEVICES: all
+      HF_HOME: /cache/hf
+      HF_HUB_CACHE: /cache/hf
+    #deploy:
+    #  resources:
+    #    reservations:
+    #      devices:
+    #        - capabilities: [gpu]
+    gpus: all
+    volumes:
+      - ${HF_CACHE_HOST_DIR}:/cache/hf
+      - ./venvs:/workspace/venvs
+      - ./checkpoints:/workspace/checkpoints
+    depends_on: [redis]
+    restart: unless-stopped
