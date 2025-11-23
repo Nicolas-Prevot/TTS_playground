@@ -1,7 +1,8 @@
 import os
 import torch
-from tts_playground.base import BaseTTS
 from chatterbox.tts import ChatterboxTTS
+
+from tts_playground.base import BaseTTS
 
 class ChatterboxTTSAdapter(BaseTTS):
     """

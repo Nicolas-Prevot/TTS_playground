@@ -23,7 +23,7 @@ class IndexTTSAdapter(BaseTTS):
         *,
         model_dir: str = "checkpoints",
         cfg_path: str = "checkpoints/config.yaml",
-        is_fp16: bool = True,
+        use_fp16: bool = True,
         device: str = None,
         use_cuda_kernel: bool = False,
         fast: bool = False,
@@ -37,12 +37,12 @@ class IndexTTSAdapter(BaseTTS):
         repetition_penalty: float = 10.0,
         max_mel_tokens: int = 600,
 
-        max_text_tokens_per_sentence: int = 100,
+        max_text_tokens_per_segment: int = 100,
     ):
         super().__init__()
         self.model_dir = model_dir
         self.cfg_path = cfg_path
-        self.is_fp16 = is_fp16
+        self.use_fp16 = use_fp16
         self.device = device
         self.use_cuda_kernel = use_cuda_kernel
         self.fast = fast
@@ -58,7 +58,7 @@ class IndexTTSAdapter(BaseTTS):
             "max_mel_tokens": max_mel_tokens,
         }
         self.fast_kwargs = {
-            "max_text_tokens_per_sentence": max_text_tokens_per_sentence,
+            "max_text_tokens_per_segment": max_text_tokens_per_segment,
         }
 
         self.model: IndexTTS = None
@@ -69,7 +69,7 @@ class IndexTTSAdapter(BaseTTS):
         self.model = IndexTTS(
             cfg_path=self.cfg_path,
             model_dir=self.model_dir,
-            is_fp16=self.is_fp16,
+            use_fp16=self.use_fp16,
             device=self.device,
             use_cuda_kernel=self.use_cuda_kernel
         )
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     tts = IndexTTSAdapter(
         model_dir="checkpoints/indextts",
         cfg_path="checkpoints/indextts/config.yaml",
-        is_fp16=True,
+        use_fp16=True,
         device="cuda",                      # or "cpu"
         use_cuda_kernel=True,              # set True if you built the custom CUDA ops
         fast=False,                         # standard (higher-quality) inference
@@ -137,7 +137,7 @@ if __name__ == "__main__":
 
     tts.load_model()
 
-    tts.clone_voice(ref_audio="data/gen/testkokoro.wav") # "data/ref/basic_ref_en.wav"
+    tts.clone_voice(ref_audio="data/ref/basic_ref_en.wav") # "data/ref/basic_ref_en.wav"
 
     wav_bytes = tts.synthesize(
         "Hello, this is a demo of IndexTTS zero-shot voice cloning!",
