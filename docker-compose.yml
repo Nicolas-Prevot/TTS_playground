@@ -20,8 +20,10 @@ services:
     ports: ["7000:7000"]
     volumes:
       - ${HF_CACHE_HOST_DIR}:/cache/hf
+      # - .:/workspace
     depends_on: [redis]
     restart: unless-stopped
+    command: ["uv", "run", "python", "-m", "tts_playground.api.main"]
 
   worker:
     build:
@@ -32,21 +34,23 @@ services:
     environment:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
-      RUNNER_VENVS_DIR: /workspace/venvs
+      RUNNER_VENVS_DIR: /workspace/adapters
       IDLE_SECS: 180
       EXIT_ON_IDLE: "1"
       NVIDIA_VISIBLE_DEVICES: all
       HF_HOME: /cache/hf
       HF_HUB_CACHE: /cache/hf
-    #deploy:
-    #  resources:
-    #    reservations:
-    #      devices:
-    #        - capabilities: [gpu]
-    gpus: all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    #gpus: all
     volumes:
       - ${HF_CACHE_HOST_DIR}:/cache/hf
-      - ./venvs:/workspace/venvs
+      #- .:/workspace  # - ./venvs:/workspace/venvs
       - ./checkpoints:/workspace/checkpoints
     depends_on: [redis]
     restart: unless-stopped
+    command: >
+      sh -c "uv sync && uv run celery -A tts_playground.tasks.celery_app worker --loglevel=info"

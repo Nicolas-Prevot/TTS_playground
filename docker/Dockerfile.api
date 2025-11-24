@@ -1,23 +1,47 @@
 FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+# Install system deps
+RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates git ffmpeg libsndfile1 tini \
- && rm -rf /var/lib/apt/lists/*
-
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.local/bin:$PATH"
-ENV HF_HOME=/cache/hf \
-    HF_HUB_CACHE=/cache/hf
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /workspace
-COPY pyproject.toml README.md /workspace/
-COPY src /workspace/src
 
-RUN uv pip install -e . --system
+# Copy configuration files first for caching
+COPY pyproject.toml uv.lock README.md ./
+COPY libs/ ./libs/
 
-EXPOSE 7000
-CMD ["python", "-m", "tts_playground.api.main"]
+# Sync only the root dependencies (no adapters yet)
+RUN uv sync --frozen --no-install-project
+
+# Copy the rest of the source code
+COPY src/ ./src/
+
+# Install the project
+RUN uv sync --frozen
+
+ENV PATH="/workspace/.venv/bin:$PATH"
+ENV PYTHONPATH="/workspace/src:$PYTHONPATH"
+
+# ENV PYTHONDONTWRITEBYTECODE=1 \
+#     PYTHONUNBUFFERED=1 \
+#     PIP_NO_CACHE_DIR=1
+# 
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#     curl ca-certificates git ffmpeg libsndfile1 tini \
+#  && rm -rf /var/lib/apt/lists/*
+# 
+# RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+# ENV PATH="/root/.local/bin:$PATH"
+# ENV HF_HOME=/cache/hf \
+#     HF_HUB_CACHE=/cache/hf
+# 
+# WORKDIR /workspace
+# COPY pyproject.toml README.md /workspace/
+# COPY src /workspace/src
+# 
+# RUN uv pip install -e . --system
+# 
+# EXPOSE 7000
+# CMD ["python", "-m", "tts_playground.api.main"]

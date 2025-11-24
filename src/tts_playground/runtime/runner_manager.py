@@ -1,178 +1,199 @@
-import json, os, subprocess, threading, uuid, sys
+import os
+import subprocess
+import threading
+import uuid
+import json
+import sys
+import base64
+import tempfile
+import shutil
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
+from loguru import logger
 
 
-VENVS_DIR = Path(os.getenv("RUNNER_VENVS_DIR", "/workspace/venvs")).resolve()
-VENVS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-ADAPTERS: dict[str, tuple[str, str, str]] = {
-    "higgsaudio": ("higgsaudio", "tts_playground.adapters.HiggsAudioTTS", "HiggsAudioAdapter"),
-    "indextts2": ("indextts2", "tts_playground.adapters.IndexTTS2", "IndexTTS2Adapter"),
-    "vibevoicetts": ("vibevoicetts", "tts_playground.adapters.VibeVoiceTTS", "VibeVoiceAdapter"),
-    "f5tts": ("f5", "tts_playground.adapters.F5_TTS", "F5TTSAdapter"),
-    "chatterbox": ("chatterbox", "tts_playground.adapters.ChatterboxTTS", "ChatterboxTTSAdapter"),
-    "openaudios1mini": ("fishaudio", "tts_playground.adapters.OpenAudioS1MiniTTS", "OpenAudioS1MiniAdapter"),
-    "kokoro": ("kokoro", "tts_playground.adapters.kokoroTTS", "KokoroTTSAdapter"),
-    "kyutai": ("kyutai", "tts_playground.adapters.KyutaiTTS", "KyutaiTTSAdapter"),
+ADAPTER_REGISTRY = {
+    "indextts2": ("indextts2", "tts_adapter_indextts2.adapter", "IndexTTS2Adapter"),
+    "chatterbox": ("chatterbox", "tts_adapter_chatterbox.adapter", "ChatterboxTTSAdapter"),
+    "f5tts": ("f5tts", "tts_adapter_f5tts.adapter", "F5TTSAdapter"),
+    "higgsaudio": ("higgsaudio", "tts_adapter_higgsaudio.adapter", "HiggsAudioAdapter"),
+    "kokoro": ("kokoro", "tts_adapter_kokoro.adapter", "KokoroTTSAdapter"),
+    "kyutai": ("kyutai", "tts_adapter_kyutai.adapter", "KyutaiTTSAdapter"),
+    "openaudios1mini": ("openaudio_s1mini", "tts_adapter_openaudio_s1mini.adapter", "OpenAudioS1MiniAdapter"),
+    "vibevoicetts": ("vibevoice", "tts_adapter_vibevoice.adapter", "VibeVoiceAdapter"),
 }
 
-
-class _Future:
-    def __init__(self):
-        self._ev = threading.Event()
-        self._res: Any = None
-
-    def set(self, v: Any):
-        self._res = v
-        self._ev.set()
-
-    def get(self) -> Any:
-        self._ev.wait()
-        return self._res
-
+ADAPTERS_ROOT = Path(os.getenv("RUNNER_VENVS_DIR", "./adapters")).resolve()
 
 class RunnerProc:
-    def __init__(self, adapter: str):
-        self.adapter = adapter
+    def __init__(self, adapter_name: str):
+        self.adapter_name = adapter_name
+        self.config = ADAPTER_REGISTRY[adapter_name]
+        self.proc: Optional[subprocess.Popen] = None
+        self._lock = threading.Lock()
+        self._futures: Dict[str, Any] = {}
+        
         self.idle_secs = int(os.getenv("IDLE_SECS", "180"))
-        self.exit_on_idle = str(os.getenv("EXIT_ON_IDLE", "1")).lower() not in ("", "0", "false", "no")
-        self.proc = None
-        self._waiter = threading.Thread(target=self._read_loop, daemon=True)
-        self._futures: dict[str, _Future] = {}
+        self.exit_on_idle = os.getenv("EXIT_ON_IDLE", "1") == "1"
 
-    def _ensure_proc(self):
-        if self.proc and self.proc.poll() is None:
-            return
-        extra, mod, cls = ADAPTERS[self.adapter]
-        envdir = VENVS_DIR / self.adapter
-        exit_flag = "1" if self.exit_on_idle else "0"
-        #cmd = (
-        #    f'uv venv "{envdir}" && '
-        #    f'UV_PROJECT_ENVIRONMENT="{envdir}" uv sync --locked --extra {extra} && '
-        #    f'"{envdir}/bin/python" -m tts_playground.runtime.adapter_runner ' # f'UV_PROJECT_ENVIRONMENT="{envdir}" uv run python -m tts_playground.runtime.adapter_runner '
-        #    f'--adapter {self.adapter} --module {mod} --cls {cls} --idle {self.idle_secs} --exit-on-idle {exit_flag}'
-        #)
-        cmd = (
-            f'set -e; '  # NEW: Exit on any error
-            f'echo "[RUNNER {self.adapter}] Starting venv setup"; '
-            f'uv venv --seed "{envdir}" && echo "[RUNNER {self.adapter}] Venv created"; ' # for kokoro
-            #f'uv venv "{envdir}" && echo "[RUNNER {self.adapter}] Venv created"; '
-            f'UV_PROJECT_ENVIRONMENT="{envdir}" uv sync --locked --extra {extra} && echo "[RUNNER {self.adapter}] Sync complete"; '
-            f'echo "[RUNNER {self.adapter}] Starting adapter_runner"; '
-            f'"{envdir}/bin/python" -m tts_playground.runtime.adapter_runner '
-            f'--adapter {self.adapter} --module {mod} --cls {cls} --idle {self.idle_secs} --exit-on-idle {exit_flag} '
-            f'&& echo "[RUNNER {self.adapter}] Adapter runner exited normally"'
-        )
-        env = dict(os.environ)
-        src_path = str(Path.cwd() / "src") # v2
-        env.update({
-            "HF_HOME": "/cache/hf",
-            "HF_HUB_CACHE": "/cache/hf",
-            "PYTHONPATH": f"{src_path}:{env.get('PYTHONPATH', '')}", # v2
-        })
-        # self.proc = subprocess.Popen(
-        #     ["bash", "-lc", cmd], stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True, bufsize=1, env=env
-        # )
-        # self._waiter = threading.Thread(target=self._read_loop, daemon=True)
-        # self._waiter.start()
+    def _start_process(self):
+        folder_name, mod_path, cls_name = self.config
+        adapter_dir = ADAPTERS_ROOT / folder_name
+        
+        if sys.platform == "win32":
+            python_exe = adapter_dir / ".venv" / "Scripts" / "python.exe"
+        else:
+            python_exe = adapter_dir / ".venv" / "bin" / "python"
+
+        if not python_exe.exists():
+            raise RuntimeError(f"Venv not found at {python_exe}. Run 'uv sync' in {adapter_dir}")
+
+        runner_script = Path(__file__).parent / "adapter_runner.py"
+        
+        cmd = [
+            str(python_exe),
+            str(runner_script),
+            "--module", mod_path,
+            "--cls", cls_name,
+            "--idle", str(self.idle_secs),
+            "--exit-on-idle", "1" if self.exit_on_idle else "0"
+        ]
+
+        logger.info(f"[{self.adapter_name}] Spawning: {' '.join(cmd)}")
+        
+        # Create a clean environment but pass necessary variables
+        env = os.environ.copy()
+        
         self.proc = subprocess.Popen(
-            ["bash", "-lc", cmd], 
-            stdin=subprocess.PIPE, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE,
-            text=True, 
-            bufsize=1, 
-            env=env
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, 
+            text=True,
+            bufsize=1,
+            env=env,
+            cwd=str(adapter_dir)
         )
-        self._waiter = threading.Thread(target=self._read_loop, daemon=True)
-        self._waiter.start()
-        stderr_thread = threading.Thread(target=self._stderr_loop, daemon=True)
-        stderr_thread.start()
-        if self.proc.poll() is not None:
-            sys.stderr.write(f"[RUNNER {self.adapter}] Process exited immediately with code {self.proc.returncode}\n")
+        
+        t_out = threading.Thread(target=self._read_loop, daemon=True)
+        t_out.start()
+
+        t_err = threading.Thread(target=self._stderr_loop, daemon=True)
+        t_err.start()
 
     def _read_loop(self):
-        if not self.proc or not self.proc.stdout:
-            return
-        for line in iter(self.proc.stdout.readline, ''):
-            line = line.rstrip('\r\n')
-            if not line:
-                continue
-            sys.stdout.write(f"[DEBUG READ {self.adapter}] Raw line (len={len(line)}): {repr(line[:100])}{'...' if len(line) > 100 else ''}\n")
+        """Reads JSON responses from STDOUT."""
+        while self.proc and self.proc.poll() is None:
             try:
+                line = self.proc.stdout.readline()
+                if not line: break
+                line = line.strip()
+                if not line: continue
+
                 msg = json.loads(line)
-                rid = msg.get("id", "")
-                fut = self._futures.pop(rid, None)
-                if fut:
-                    sys.stdout.write(f"[DEBUG SET {self.adapter}] Set fut for rid={rid}, ok={msg.get('ok')}\n")
-                    fut.set(msg)
-                else:
-                    sys.stdout.write(f"[DEBUG NOFUT {self.adapter}] Parsed msg for unknown rid={rid}\n")
-            except json.JSONDecodeError as e:
-                sys.stdout.write(f"[RUNNER_STDOUT {self.adapter}]: {line}\n")
-                sys.stdout.write(f"[DEBUG JSONERR {self.adapter}] Decode error: {str(e)}\n")
+                rid = msg.get("id")
+                
+                with self._lock:
+                    if rid in self._futures:
+                        self._futures[rid]['result'] = msg
+                        self._futures[rid]['event'].set()
+            except json.JSONDecodeError:
+                # Fallback if non-json creeps into stdout
+                logger.debug(f"[{self.adapter_name} RAW] {line}")
             except Exception as e:
-                sys.stdout.write(f"[DEBUG PARSEERR {self.adapter}] Unexpected error on line: {str(e)}\n")
-        for rid, fut in list(self._futures.items()):
-            sys.stdout.write(f"[DEBUG REMAIN {self.adapter}] Setting error for remaining rid={rid}\n")
-            fut.set({"ok": False, "error": "runner exited"})
-            self._futures.pop(rid, None)
+                logger.error(f"[{self.adapter_name}] Read loop error: {e}")
 
     def _stderr_loop(self):
-        if not self.proc or not self.proc.stderr:
-            return
-        for line in iter(self.proc.stderr.readline, ''):
-            line = line.strip()
-            if line:
-                sys.stderr.write(f"[RUNNER_STDERR {self.adapter}]: {line}\n")
+        """Reads logs from STDERR and pipes them to the main logger."""
+        while self.proc and self.proc.poll() is None:
+            try:
+                line = self.proc.stderr.readline()
+                if not line: break
+                line = line.strip()
+                if line:
+                    # Log as INFO so it shows up in Celery logs
+                    logger.info(f"[{self.adapter_name}] {line}")
+            except Exception:
+                break
+
+    def _is_blob(self, item: Any) -> bool:
+        return isinstance(item, dict) and "b64" in item and "name" in item
+
+    def _stage_files(self, data: Any, temp_dir: Path) -> Any:
+        """Recursively find B64 blobs, write to disk, replace with Path str."""
+        if isinstance(data, dict):
+            if self._is_blob(data):
+                # It's a file blob -> Write it
+                safe_name = "".join(c for c in data["name"] if c.isalnum() or c in "._-")
+                file_path = temp_dir / safe_name
+                file_path.write_bytes(base64.b64decode(data["b64"]))
+                return str(file_path)
+            else:
+                return {k: self._stage_files(v, temp_dir) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._stage_files(i, temp_dir) for i in data]
+        else:
+            return data
 
     def _req(self, method: str, params: Dict[str, Any]) -> Any:
-        self._ensure_proc()
-        assert self.proc and self.proc.stdin
+        with self._lock:
+            if self.proc is None or self.proc.poll() is not None:
+                self._start_process()
+
         rid = uuid.uuid4().hex
-        fut = _Future()
-        self._futures[rid] = fut
-        payload = {"id": rid, "method": method, "params": params}
-        self.proc.stdin.write(json.dumps(payload) + "\n")
-        self.proc.stdin.flush()
-        resp = fut.get()
-        if not resp.get("ok", False):
-            raise RuntimeError(resp.get("error", "runner error"))
-        return resp.get("result")
+        event = threading.Event()
+        
+        with self._lock:
+            self._futures[rid] = {'event': event, 'result': None}
 
-    def run_all(
-        self,
-        init: Dict[str, Any],
-        load_model: Dict[str, Any],
-        clone: Dict[str, Any],
-        text: str,
-        adapter_args: Dict[str, Any],
-    ) -> Dict[str, Any]:
-        params = {
-            "init": init,
-            "load_model": load_model,
-            "clone_voice": clone,
-            "synthesize": {"text": text, "kwargs": adapter_args},
-        }
-        return self._req("run", params)
+        try:
+            payload = {"id": rid, "method": method, "params": params}
+            self.proc.stdin.write(json.dumps(payload) + "\n")
+            self.proc.stdin.flush()
+            
+            if not event.wait(timeout=600):
+                raise TimeoutError(f"Request {rid} timed out")
+            
+            response = self._futures[rid]['result']
+            if not response.get("ok"):
+                raise RuntimeError(f"Runner Error: {response.get('error')}")
+            
+            return response.get("result")
+        finally:
+            with self._lock:
+                self._futures.pop(rid, None)
 
+    def run_all(self, init, load_model, clone, text, adapter_args):
+        # Create a temporary directory for this specific request
+        with tempfile.TemporaryDirectory(prefix=f"tts_{self.adapter_name}_") as tmp_dir_str:
+            tmp_path = Path(tmp_dir_str)
+            
+            # 1. Stage files (convert B64 -> Paths)
+            safe_clone = self._stage_files(clone, tmp_path)
+            safe_args = self._stage_files(adapter_args, tmp_path)
+            
+            # 2. Call Runner
+            result = self._req("run", {
+                "init": init,
+                "load_model": load_model,
+                "clone_voice": safe_clone,
+                "synthesize": {"text": text, "kwargs": safe_args}
+            })
+            
+            # 3. Temp dir is automatically cleaned up here
+            return result
 
 class RunnerManager:
     def __init__(self):
-        self._procs: dict[str, RunnerProc] = {}
+        self._runners: Dict[str, RunnerProc] = {}
         self._lock = threading.Lock()
 
-    def get(self, adapter: str) -> RunnerProc:
-        if adapter not in ADAPTERS:
-            raise KeyError(f"Unknown adapter: {adapter}")
+    def get(self, adapter_name: str) -> RunnerProc:
+        if adapter_name not in ADAPTER_REGISTRY:
+            raise ValueError(f"Unknown adapter: {adapter_name}")
         with self._lock:
-            rp = self._procs.get(adapter)
-            if rp is None:
-                rp = RunnerProc(adapter)
-                self._procs[adapter] = rp
-            return rp
-
+            if adapter_name not in self._runners:
+                self._runners[adapter_name] = RunnerProc(adapter_name)
+            return self._runners[adapter_name]
 
 manager = RunnerManager()
