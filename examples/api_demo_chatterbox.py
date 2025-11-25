@@ -29,6 +29,7 @@ if __name__ == "__main__":
     # Adapter init settings
     base_init = {
         # "device": "cuda", 
+        "device": "cpu",
     }
 
     client = TTSClient(BASE_URL, timeout=120.0)

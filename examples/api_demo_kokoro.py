@@ -22,7 +22,6 @@ if __name__ == "__main__":
     base_init = {
         "lang_code": "a",       # Start with American English
         "voice": "af_heart",    # Default voice
-        "device": "cuda"        # or cpu
     }
 
     def run_case(
