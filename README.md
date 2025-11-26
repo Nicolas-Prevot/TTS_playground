@@ -109,3 +109,13 @@ This project is **ongoing** and welcomes contributions or suggestions. Planned i
 Feedback is also appreciated – if you discover that one model performs significantly better on a certain kind of text or notice any errors in the adapter implementations, let me know via GitHub issues. The goal is to make TTS Playground a comprehensive and up-to-date tested for the TTS community.
 
 ---
+
+
+TODO:
+- update fish audio to v1.5: https://huggingface.co/fishaudio/fish-speech-1.5
+- make checkpoints and artifacts automatically downloaded
+- upgrade Interactive page with audio samples
+
+Model to add:
+- https://huggingface.co/maya-research/maya1
+- https://huggingface.co/stepfun-ai/Step-Audio-EditX
