@@ -31,13 +31,10 @@ if __name__ == "__main__":
     ref_blob = client.pack_file(str(SPK_REF_PATH))
 
     # --- 2. Configuration ---
-    # Server-side paths relative to where the worker runs
     base_init = {
-        "llama_checkpoint_dir": "checkpoints/openaudio-s1-mini",
-        "codec_checkpoint_path": "checkpoints/openaudio-s1-mini/codec.pth",
+        "llama_checkpoint_dir": "/workspace/checkpoints/openaudio-s1-mini",
+        "codec_checkpoint_path": "/workspace/checkpoints/openaudio-s1-mini/codec.pth",
         "decoder_config_name": "modded_dac_vq",
-        # Ideally absolute path inside container, or relative to adapter root
-        # The adapter defaults usually work if the folder structure is mounted correctly
         "config_root_path": "/workspace/configs/openaudio-s1-mini", 
         "device": "cuda",
         "half": True
