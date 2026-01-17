@@ -1,0 +1,36 @@
+[project]
+name = "tts-adapter-fish-speech-1-5"
+version = "0.1.0"
+description = "Adapter for Fish Speech 1.5"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "torch<2.9",
+    "torchaudio",
+    "fish-speech",
+    "numpy",
+    "soundfile",
+    "loguru",
+    "hydra-core",
+    "torchcodec",
+    "tts-core",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_adapter_fish_speech_1_5"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+tts-core = { path = "../../libs/tts_core", editable = true }
+#fish-speech = { git = "https://github.com/fishaudio/fish-speech.git" }
+fish-speech = { git = "https://github.com/fishaudio/fish-speech.git", tag = "v1.5.1" }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
