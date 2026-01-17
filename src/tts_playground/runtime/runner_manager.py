@@ -21,6 +21,8 @@ ADAPTER_REGISTRY = {
     "kyutai": ("kyutai", "tts_adapter_kyutai.adapter", "KyutaiTTSAdapter"),
     "openaudios1mini": ("openaudio_s1mini", "tts_adapter_openaudio_s1mini.adapter", "OpenAudioS1MiniAdapter"),
     "vibevoicetts": ("vibevoice", "tts_adapter_vibevoice.adapter", "VibeVoiceAdapter"),
+    "fishspeech15": ("fish_speech_1_5", "tts_adapter_fish_speech_1_5.adapter", "FishSpeech15Adapter"),
+    "dia2": ("dia2", "tts_adapter_dia2.adapter", "Dia2Adapter"),
 }
 
 ADAPTERS_ROOT = Path(os.getenv("RUNNER_VENVS_DIR", "./adapters")).resolve()
@@ -36,9 +38,34 @@ class RunnerProc:
         self.idle_secs = int(os.getenv("IDLE_SECS", "180"))
         self.exit_on_idle = os.getenv("EXIT_ON_IDLE", "1") == "1"
 
+    def _ensure_environment(self, adapter_dir: Path):
+        """
+        Checks if the .venv exists. If not, runs 'uv sync' to create it.
+        """
+        venv_python = adapter_dir / ".venv" / "bin" / "python"
+        
+        # If python doesn't exist, we assume the environment needs creation/sync
+        if not venv_python.exists():
+            logger.info(f"[{self.adapter_name}] Environment missing. Installing dependencies... (This may take a moment)")
+            try:
+                result = subprocess.run(
+                    ["uv", "sync"], 
+                    cwd=str(adapter_dir),
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                logger.debug(f"[{self.adapter_name}] uv sync stdout:\n{result.stdout}")
+                logger.success(f"[{self.adapter_name}] Environment created successfully.")
+            except subprocess.CalledProcessError as e:
+                logger.error(f"[{self.adapter_name}] Failed to create environment: {e}")
+                raise RuntimeError(f"Could not install dependencies for {self.adapter_name}")
+            
     def _start_process(self):
         folder_name, mod_path, cls_name = self.config
         adapter_dir = ADAPTERS_ROOT / folder_name
+
+        self._ensure_environment(adapter_dir)
         
         if sys.platform == "win32":
             python_exe = adapter_dir / ".venv" / "Scripts" / "python.exe"
@@ -80,6 +107,20 @@ class RunnerProc:
 
         t_err = threading.Thread(target=self._stderr_loop, daemon=True)
         t_err.start()
+
+    def stop(self):
+        """Explicitly stop the runner process to free memory."""
+        with self._lock:
+            if self.proc:
+                if self.proc.poll() is None:
+                    logger.info(f"[{self.adapter_name}] Stopping runner to free VRAM...")
+                    self.proc.terminate()
+                    try:
+                        self.proc.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        logger.warning(f"[{self.adapter_name}] Force killing runner...")
+                        self.proc.kill()
+                self.proc = None
 
     def _read_loop(self):
         """Reads JSON responses from STDOUT."""
@@ -192,6 +233,12 @@ class RunnerManager:
         if adapter_name not in ADAPTER_REGISTRY:
             raise ValueError(f"Unknown adapter: {adapter_name}")
         with self._lock:
+            for name, runner in self._runners.items():
+                if name != adapter_name:
+                    # Check if the process is actually running before trying to stop it
+                    if runner.proc is not None and runner.proc.poll() is None:
+                        logger.info(f"[Manager] Switching models: Closing {name} to start {adapter_name}")
+                        runner.stop()
             if adapter_name not in self._runners:
                 self._runners[adapter_name] = RunnerProc(adapter_name)
             return self._runners[adapter_name]

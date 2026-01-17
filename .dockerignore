@@ -18,4 +18,4 @@ pycache/
 *.pyd
 
 # 5. Ignore local outputs
-examples/output/
+examples/

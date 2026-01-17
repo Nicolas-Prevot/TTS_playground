@@ -40,6 +40,7 @@ services:
       NVIDIA_VISIBLE_DEVICES: all
       HF_HOME: /cache/hf
       HF_HUB_CACHE: /cache/hf
+      UV_CACHE_DIR: /uv_cache
     deploy:
       resources:
         reservations:
@@ -50,7 +51,12 @@ services:
       - ${HF_CACHE_HOST_DIR}:/cache/hf
       #- .:/workspace  # - ./venvs:/workspace/venvs
       - ./checkpoints:/workspace/checkpoints
+      - ./external:/workspace/external
+      - tts_uv_cache:/uv_cache
     depends_on: [redis]
     restart: unless-stopped
     command: >
       sh -c "uv sync && uv run celery -A tts_playground.tasks.celery_app worker --loglevel=info"
+
+volumes:
+  tts_uv_cache:

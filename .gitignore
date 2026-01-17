@@ -149,6 +149,6 @@ cython_debug/
 # Datasets and artifacts
 data/
 checkpoints/*
-configs/*
+#configs/*
 
 !*.gitkeep

@@ -112,7 +112,6 @@ Feedback is also appreciated – if you discover that one model performs signifi
 
 
 TODO:
-- update fish audio to v1.5: https://huggingface.co/fishaudio/fish-speech-1.5
 - make checkpoints and artifacts automatically downloaded
 - upgrade Interactive page with audio samples
 
