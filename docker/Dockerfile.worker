@@ -16,6 +16,11 @@ RUN apt-get update && apt-get install -y \
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_CACHE_DIR=/uv_cache \
+    UV_LINK_MODE=copy
+
 WORKDIR /workspace
 
 COPY pyproject.toml uv.lock README.md ./
@@ -24,27 +29,13 @@ COPY libs/ ./libs/
 # Sync root deps
 RUN uv sync --frozen --no-install-project
 
-COPY adapters/ ./adapters/
-
-# Iterate through all subdirectories in adapters/ and run uv sync in each
-# This bakes the environments into the image.
-# RUN for dir in adapters/*; do \
-#       if [ -d "$dir" ] && [ -f "$dir/pyproject.toml" ]; then \
-#         echo "Syncing adapter in $dir..."; \
-#         cd "$dir" && uv sync --frozen && cd ../..; \
-#       fi \
-#     done
-
+#COPY adapters/ ./adapters/
 COPY src/ ./src/
 COPY configs/ ./configs/
 
 RUN uv sync --frozen
 
 ENV PATH="/workspace/.venv/bin:$PATH"
-#ENV PYTHONPATH="/workspace/src:$PYTHONPATH"
-ENV UV_CACHE_DIR="/uv_cache" 
-# UV_LINK_MODE=copy ensures cache works across potential volume boundaries
-ENV UV_LINK_MODE=copy
 
 # ENV DEBIAN_FRONTEND=noninteractive \
 #     PYTHONDONTWRITEBYTECODE=1 \

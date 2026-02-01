@@ -1,21 +1,17 @@
-# 1. Ignore massive model weights (We mount these at runtime via docker-compose)
 checkpoints/
-data/
 
-# 2. Ignore local virtual environments (Docker builds its own)
+data/
+examples/
+docs/
+
 .venv/
 adapters/*/.venv/
 
-# 3. Ignore Git history and IDE files
 .git/
 .vscode/
 .idea/
 
-# 4. Ignore python artifacts
 pycache/
 *.pyc
 *.pyo
 *.pyd
-
-# 5. Ignore local outputs
-examples/

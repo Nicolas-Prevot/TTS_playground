@@ -1,10 +1,13 @@
 FROM python:3.12-slim
 
 # Install system deps
-RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
+# RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl git libsndfile1 && rm -rf /var/lib/apt/lists/*
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /workspace
 
@@ -22,7 +25,8 @@ COPY src/ ./src/
 RUN uv sync --frozen
 
 ENV PATH="/workspace/.venv/bin:$PATH"
-ENV PYTHONPATH="/workspace/src:$PYTHONPATH"
+
+#ENV PYTHONPATH="/workspace/src:$PYTHONPATH"
 
 # ENV PYTHONDONTWRITEBYTECODE=1 \
 #     PYTHONUNBUFFERED=1 \
