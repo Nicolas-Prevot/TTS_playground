@@ -139,5 +139,6 @@ data/
 checkpoints/*
 external/
 #configs/*
+adapters/higgsaudio/src/tts_adapter_higgsaudio/audio_processing
 
 !*.gitkeep
