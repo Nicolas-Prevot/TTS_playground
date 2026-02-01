@@ -10,14 +10,21 @@ def task_all(self, payload: Dict[str, Any]) -> Dict[str, Any]:
     Main worker entry point.
     """
     adapter_name = payload["adapter"]
+    if not adapter_name:
+        raise ValueError("payload.adapter is required")
     
     init_params = payload.get("init", {})
     load_params = payload.get("load_model", {})
     clone_params = payload.get("clone_voice", {})
     synth_data = payload["synthesize"]
     
-    text = synth_data["text"]
-    synth_kwargs = synth_data.get("kwargs", {})
+    text = synth_data.get("text")
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError("payload.synthesize.text must be a non-empty string")
+
+    synth_kwargs = synth_data.get("kwargs") or {}
+    if not isinstance(synth_kwargs, dict):
+        raise ValueError("payload.synthesize.kwargs must be an object/dict")
 
     runner = manager.get(adapter_name)
     

@@ -15,7 +15,13 @@ celery_app = Celery(
 celery_app.conf.task_queues = (Queue("tts.dynamic"),)
 celery_app.conf.task_default_queue = "tts.dynamic"
 celery_app.conf.task_default_exchange = "tts"
-celery_app.conf.result_expires = 3600
-celery_app.conf.accept_content = ['json']
-celery_app.conf.task_serializer = 'json'
-celery_app.conf.result_serializer = 'json'
+
+celery_app.conf.result_expires = int(os.getenv("CELERY_RESULT_EXPIRES", "3600"))
+celery_app.conf.accept_content = ["json"]
+celery_app.conf.task_serializer = "json"
+celery_app.conf.result_serializer = "json"
+
+celery_app.conf.worker_concurrency = int(os.getenv("CELERY_CONCURRENCY", "1"))
+celery_app.conf.worker_prefetch_multiplier = 1
+celery_app.conf.task_acks_late = True
+celery_app.conf.task_reject_on_worker_lost = True
