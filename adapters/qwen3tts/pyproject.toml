@@ -1,0 +1,35 @@
+[project]
+name = "tts-adapter-qwen3tts"
+version = "0.1.0"
+description = "Adapter for Qwen3-TTS (CustomVoice / VoiceDesign / Voice Clone)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "qwen-tts",
+  "numpy",
+  "soundfile",
+  "torch",
+  "torchaudio",
+  "loguru",
+  "numba>=0.59.0",
+  "llvmlite>=0.42.0",
+  "tts-core",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_adapter_qwen3tts"]
+
+[tool.uv.sources]
+qwen-tts = { url = "https://github.com/QwenLM/Qwen3-TTS/archive/refs/heads/main.zip" }
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+tts-core = { path = "../../libs/tts_core", editable = true }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
