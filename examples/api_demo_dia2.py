@@ -22,17 +22,17 @@ if __name__ == "__main__":
         SPK_REF_PATH = None
 
     print(f"Connecting to {BASE_URL}...")
-    client = TTSClient(BASE_URL, timeout=300.0)
+    client = TTSClient(BASE_URL, timeout=180.0)
 
     # --- 1. Prepare Blob (if ref exists) ---
     spk_ref_blob = client.pack_file(str(SPK_REF_PATH)) if SPK_REF_PATH else None
 
-    # --- 2. Init settings (mirrors adapter __init__ defaults) ---
+    # --- 2. Init settings (mirrors Dia2Adapter defaults) ---
     base_init = {
         "repo_id": "nari-labs/Dia2-2B",
-        "device": "cuda",         # or "cpu"
+        "device": "cuda",         # or "cpu" (slower)
         "dtype": "bfloat16",
-        "cfg_scale": 2.0,
+        "cfg_scale": 6.0,         # matches upstream CLI quickstart
         "audio_temperature": 0.8,
         "audio_top_k": 50,
         "use_cuda_graph": True,
@@ -51,7 +51,7 @@ if __name__ == "__main__":
         if use_prefix and spk_ref_blob is not None:
             clone_args = {
                 "prefix_speaker_1": spk_ref_blob,
-                "include_prefix_audio": False,
+                "include_prefix": False,  # conditioning only (do not prepend ref audio)
             }
 
         try:

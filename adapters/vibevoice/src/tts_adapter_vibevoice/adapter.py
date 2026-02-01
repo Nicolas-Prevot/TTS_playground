@@ -2,6 +2,7 @@ import os
 import os.path as osp
 import re
 from typing import Any, Dict, List, Optional, Union
+
 import torch
 from transformers.utils import logging as hf_logging
 
@@ -19,34 +20,35 @@ _SPK_REGEX = re.compile(r"^\s*Speaker\s+(\d+)\s*:", flags=re.IGNORECASE | re.MUL
 
 class VibeVoiceAdapter(BaseTTS):
     """
-    Adapter for the VibeVoice (community) models.
-    - Supports: 1.5B / 7B checkpoints from HF (or a local dir)
+    Adapter for VibeVoice (community) models.
+
+    Supports:
+    - 1.5B / 7B checkpoints (HF repo id or local directory)
     - Voice cloning via "prefill" (reference wavs)
-    - Multi-speaker: parse 'Speaker N:' labels and align voices
-    - LoRA adapter loading
+    - Multi-speaker scripts: parse "Speaker N:" labels and align voices
+    - Optional LoRA adapter loading
     - flash_attention_2 (preferred on CUDA) with SDPA fallback
-    - DDPM steps & CFG scale (classifier-free guidance)
+    - DDPM steps & CFG scale
     """
 
     def __init__(
         self,
         *,
-        model_id: str = "vibevoice/VibeVoice-7B",        # HF repo or local dir
-        device: Optional[str] = None,                    # "cuda" | "mps" | "cpu" | None (auto)
-        torch_dtype: Optional[str] = None,               # "bfloat16" | "float16" | "float32" | None (auto)
-        attn_implementation: Optional[str] = None,       # "flash_attention_2" | "sdpa" | None (auto)
-        cfg_scale: float = 1.3,                          # CFG guidance
-        ddpm_steps: int = 10,                            # DDPM inference steps
-        is_prefill: bool = True,                         # enable voice cloning by default if refs exist
-        generation_config: Optional[Dict[str, Any]] = None,  # e.g. {"do_sample": False}
-        lora_checkpoint: Optional[str] = None,           # path to fine-tuned LoRA assets (optional)
+        model_id: str = "vibevoice/VibeVoice-7B",
+        device: Optional[str] = None,  # "cuda" | "mps" | "cpu" | None (auto)
+        torch_dtype: Optional[str] = None,  # "bfloat16" | "float16" | "float32" | None (auto)
+        attn_implementation: Optional[str] = None,  # "flash_attention_2" | "sdpa" | None (auto)
+        cfg_scale: float = 1.3,
+        ddpm_steps: int = 10,
+        is_prefill: bool = True,
+        generation_config: Optional[Dict[str, Any]] = None,
+        lora_checkpoint: Optional[str] = None,
         verbose: bool = False,
     ):
         super().__init__()
+
+        # Public-ish config
         self.model_id = model_id
-        self.device_arg = (device or None)
-        self.dtype_arg = (torch_dtype or None)
-        self.attn_impl_arg = (attn_implementation or None)
         self.cfg_scale = cfg_scale
         self.ddpm_steps = ddpm_steps
         self.is_prefill_default = is_prefill
@@ -54,15 +56,20 @@ class VibeVoiceAdapter(BaseTTS):
         self.lora_checkpoint = lora_checkpoint
         self.verbose = verbose
 
+        # Internal config
+        self.device_arg = device or None
+        self.dtype_arg = torch_dtype or None
+        self.attn_impl_arg = attn_implementation or None
+
         self.model: Optional[VibeVoiceForConditionalGenerationInference] = None
         self.processor: Optional[VibeVoiceProcessor] = None
-        self.sr = 24000  # VibeVoice demos assume 24 kHz
+        self.sr = 24000  # VibeVoice demos assume 24kHz
 
-        # Pre-fill storage
-        self._voice_list_default: List[str] = []          # ordered list used when single-speaker or as fallback
-        self._speaker_voices: Dict[str, str] = {}         # explicit mapping: {"1": "p1.wav", "2": "p2.wav"}
+        # Prefill storage
+        self._voice_list_default: List[str] = []          # ordered list for default/fallback
+        self._speaker_voices: Dict[str, str] = {}         # explicit mapping: {"1": "p1.wav", ...}
 
-        # quiet HF if not verbose
+        # Quiet HF if not verbose
         if not self.verbose:
             hf_logging.set_verbosity_error()
 
@@ -84,14 +91,26 @@ class VibeVoiceAdapter(BaseTTS):
     def _pick_dtype(self, device: str) -> torch.dtype:
         if self.dtype_arg:
             m = self.dtype_arg.lower()
-            return {
+            mapping = {
                 "float32": torch.float32, "fp32": torch.float32,
                 "bfloat16": torch.bfloat16, "bf16": torch.bfloat16,
                 "float16": torch.float16, "fp16": torch.float16,
-            }[m]
+            }
+            if m not in mapping:
+                raise ValueError(f"Unknown torch_dtype '{self.dtype_arg}'. Use float32/float16/bfloat16.")
+            return mapping[m]
+
         if device == "cuda":
-            return torch.bfloat16
-        return torch.float32  # MPS/CPU: fp32 for stability
+            # Prefer bf16 if supported, else fp16
+            try:
+                if torch.cuda.is_bf16_supported():
+                    return torch.bfloat16
+            except Exception:
+                pass
+            return torch.float16
+
+        # MPS/CPU: fp32 for stability
+        return torch.float32
 
     def _pick_attn(self, device: str) -> str:
         if self.attn_impl_arg:
@@ -108,7 +127,7 @@ class VibeVoiceAdapter(BaseTTS):
                 order.append(sid)
                 seen.add(sid)
         return order
-    
+
     def _ensure_script_labels(self, text: str) -> str:
         """If no 'Speaker N:' labels exist, convert to a Speaker 1 script."""
         if _SPK_REGEX.search(text or ""):
@@ -122,10 +141,10 @@ class VibeVoiceAdapter(BaseTTS):
 
     @staticmethod
     def _validate_files(paths: List[str]) -> List[str]:
-        out = []
+        out: List[str] = []
         for p in paths:
             if not osp.isfile(p):
-                raise FileNotFoundError(f"Reference WAV not found: {p}")
+                raise FileNotFoundError(f"Reference file not found: {p}")
             out.append(p)
         return out
 
@@ -135,12 +154,38 @@ class VibeVoiceAdapter(BaseTTS):
     def load_model(self, **overrides):
         """
         Optional runtime overrides:
-        - model_id, device, torch_dtype, attn_implementation, cfg_scale,
-          ddpm_steps, is_prefill, generation_config, lora_checkpoint, verbose
+          - model_id, device, torch_dtype, attn_implementation,
+            cfg_scale, ddpm_steps, is_prefill, generation_config,
+            lora_checkpoint, verbose
         """
-        for k, v in (overrides or {}).items():
-            if hasattr(self, k):
-                setattr(self, k, v)
+        # Apply overrides with explicit mapping (public API keys -> internal attrs)
+        if overrides:
+            if "model_id" in overrides:
+                self.model_id = overrides["model_id"]
+            if "device" in overrides:
+                self.device_arg = overrides["device"]
+            if "torch_dtype" in overrides:
+                self.dtype_arg = overrides["torch_dtype"]
+            if "attn_implementation" in overrides:
+                self.attn_impl_arg = overrides["attn_implementation"]
+            if "cfg_scale" in overrides:
+                self.cfg_scale = float(overrides["cfg_scale"])
+            if "ddpm_steps" in overrides:
+                self.ddpm_steps = int(overrides["ddpm_steps"])
+            if "is_prefill" in overrides:
+                self.is_prefill_default = bool(overrides["is_prefill"])
+            if "generation_config" in overrides and overrides["generation_config"] is not None:
+                self.gen_cfg_default = dict(overrides["generation_config"])
+            if "lora_checkpoint" in overrides:
+                self.lora_checkpoint = overrides["lora_checkpoint"]
+            if "verbose" in overrides:
+                self.verbose = bool(overrides["verbose"])
+
+        # Update HF verbosity based on current verbose flag
+        if self.verbose:
+            hf_logging.set_verbosity_info()
+        else:
+            hf_logging.set_verbosity_error()
 
         device = self._pick_device()
         dtype = self._pick_dtype(device)
@@ -156,16 +201,25 @@ class VibeVoiceAdapter(BaseTTS):
         def _load(attn_impl: str):
             if device == "mps":
                 m = VibeVoiceForConditionalGenerationInference.from_pretrained(
-                    self.model_id, torch_dtype=dtype, attn_implementation=attn_impl, device_map=None
+                    self.model_id,
+                    torch_dtype=dtype,
+                    attn_implementation=attn_impl,
+                    device_map=None,
                 )
                 return m.to("mps")
             if device == "cuda":
                 return VibeVoiceForConditionalGenerationInference.from_pretrained(
-                    self.model_id, torch_dtype=dtype, attn_implementation=attn_impl, device_map="cuda"
+                    self.model_id,
+                    torch_dtype=dtype,
+                    attn_implementation=attn_impl,
+                    device_map="cuda",
                 )
             # CPU
             return VibeVoiceForConditionalGenerationInference.from_pretrained(
-                self.model_id, torch_dtype=dtype, attn_implementation=attn_impl, device_map="cpu"
+                self.model_id,
+                torch_dtype=dtype,
+                attn_implementation=attn_impl,
+                device_map="cpu",
             )
 
         try:
@@ -203,10 +257,9 @@ class VibeVoiceAdapter(BaseTTS):
           - speaker_voices={"1": "a.wav", 2: "b.wav"} (explicit mapping for multi-speaker scripts)
 
         Notes:
-          - For multi-speaker scripts, the order is determined by first appearance
-            of "Speaker N:" in the text. We'll map N → file via `speaker_voices` if provided,
-            otherwise pick from `voice_samples` by index (1-based), else fall back to
-            the first default voice if present.
+          - For multi-speaker scripts, order is determined by first appearance of "Speaker N:".
+            We'll map N → file via `speaker_voices` if provided, otherwise pick from `voice_samples`
+            by index (1-based), else fall back to the first default voice if present.
         """
         # default list
         if ref_audio is not None:
@@ -220,25 +273,20 @@ class VibeVoiceAdapter(BaseTTS):
             for k, v in speaker_voices.items():
                 sid = str(int(k))
                 if not osp.isfile(v):
-                    raise FileNotFoundError(f"Reference WAV not found for speaker {sid}: {v}")
+                    raise FileNotFoundError(f"Reference file not found for speaker {sid}: {v}")
                 self._speaker_voices[sid] = v
 
-        # must have at least *some* references to use prefill later
         return bool(self._voice_list_default or self._speaker_voices)
 
     @torch.no_grad()
-    def synthesize(
-        self,
-        text: str,
-        **kwargs,
-    ) -> bytes:
+    def synthesize(self, text: str, **kwargs) -> bytes:
         """
         Per-call overrides:
           - cfg_scale: float
           - ddpm_steps: int
           - is_prefill: bool
           - max_new_tokens: Optional[int]
-          - generation_config: dict (e.g. {"do_sample": False, "temperature": 0.8, "top_p": 0.9})
+          - generation_config: dict (e.g. {"do_sample": True, "temperature": 0.8})
           - seed: Optional[int]
           - speaker_voices: Optional[Dict[Union[str,int], str]]  # per-call override
           - voice_samples: Optional[List[str]]                   # per-call override
@@ -257,31 +305,36 @@ class VibeVoiceAdapter(BaseTTS):
         cfg_scale = float(kwargs.get("cfg_scale", self.cfg_scale))
         is_prefill = bool(kwargs.get("is_prefill", self.is_prefill_default))
         max_new_tokens = kwargs.get("max_new_tokens", None)
+
         ddpm_steps = kwargs.get("ddpm_steps", None)
         if ddpm_steps is not None:
             self.model.set_ddpm_inference_steps(num_steps=int(ddpm_steps))
+
         gen_cfg = dict(self.gen_cfg_default)
         gen_cfg.update(kwargs.get("generation_config", {}))
 
         # voice refs (allow per-call override)
         tmp_voice_list = self._voice_list_default[:]
         tmp_speaker_map = dict(self._speaker_voices)
+
         if "voice_samples" in kwargs and kwargs["voice_samples"]:
             tmp_voice_list = self._validate_files(list(kwargs["voice_samples"]))
+
         if "speaker_voices" in kwargs and kwargs["speaker_voices"]:
             tmp_speaker_map = {}
             for k, v in kwargs["speaker_voices"].items():
                 sid = str(int(k))
                 if not osp.isfile(v):
-                    raise FileNotFoundError(f"Reference WAV not found for speaker {sid}: {v}")
+                    raise FileNotFoundError(f"Reference file not found for speaker {sid}: {v}")
                 tmp_speaker_map[sid] = v
 
         script = self._ensure_script_labels(text)
-        speakers_in_text = self._first_appearance_speaker_order(script)
-        if self.verbose:
-            if speakers_in_text:
-                print(f"[VibeVoice] detected speakers: {speakers_in_text}")
 
+        speakers_in_text = self._first_appearance_speaker_order(script)
+        if self.verbose and speakers_in_text:
+            print(f"[VibeVoice] detected speakers: {speakers_in_text}")
+
+        # Build ordered voice list matching Speaker 1..N
         voice_list_for_this_call: List[str] = []
         if speakers_in_text:
             for idx, sid in enumerate(speakers_in_text, start=1):
@@ -292,32 +345,38 @@ class VibeVoiceAdapter(BaseTTS):
                 elif tmp_voice_list:
                     voice_list_for_this_call.append(tmp_voice_list[0])        # fallback to first ref
                 else:
-                    # no references at all → prefill must be disabled
+                    # no references at all
                     pass
         else:
-            # single-speaker text: use the default list (first item if present)
+            # single-speaker text: use first default voice if present
             if tmp_voice_list:
                 voice_list_for_this_call = [tmp_voice_list[0]]
 
-        # If no refs resolved, prefill cannot be used
+        # Prefill is only possible if we have references AND user wants it
         use_prefill = is_prefill and bool(voice_list_for_this_call)
 
-        # Prepare processor inputs
+        # IMPORTANT:
+        # If prefill is OFF, pass voice_samples=None so processor does not build speech tensors.
+        voice_samples_arg = [voice_list_for_this_call] if use_prefill else None
+
         inputs = self.processor(
-            text=[script],                                      # batch of size 1
-            voice_samples=[voice_list_for_this_call] if voice_list_for_this_call else [[]],
+            text=[script],                # batch size 1
+            voice_samples=voice_samples_arg,
             padding=True,
             return_tensors="pt",
             return_attention_mask=True,
         )
 
         # Move tensors to model device
-        target = self.model.device if hasattr(self.model, "device") else next(self.model.parameters()).device
+        target = getattr(self.model, "device", None)
+        if target is None:
+            target = next(self.model.parameters()).device
+
         for k, v in list(inputs.items()):
             if torch.is_tensor(v):
                 inputs[k] = v.to(target)
 
-        # Generate
+        # Generate (DO NOT pass is_prefill to generate; upstream doesn't accept it reliably)
         outputs = self.model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
@@ -325,88 +384,16 @@ class VibeVoiceAdapter(BaseTTS):
             tokenizer=self.processor.tokenizer,
             generation_config=gen_cfg,
             verbose=self.verbose,
-            is_prefill=use_prefill,
         )
 
         if not getattr(outputs, "speech_outputs", None) or outputs.speech_outputs[0] is None:
             raise RuntimeError("No audio generated by VibeVoice.")
 
-        # (Optional) small telemetry
-        try:
-            input_tokens = int(inputs["input_ids"].shape[1])
-            output_tokens = int(outputs.sequences.shape[1])
-            if self.verbose:
-                print(f"[VibeVoice] tokens: prefilling={input_tokens}, generated={output_tokens - input_tokens}, total={output_tokens}")
-        except Exception:
-            pass
-
         # Extract 1-D float waveform in [-1, 1]
         wav = outputs.speech_outputs[0]
         if isinstance(wav, torch.Tensor):
-            # Expect shape [B=1, T] or [T]; convert to 1-D CPU float
             if wav.ndim == 2 and wav.shape[0] == 1:
                 wav = wav[0]
             wav = wav.detach().to("cpu").float().numpy()
 
         return self._wav_to_bytes(wav, self.sr)
-
-
-# ------------------------------------------------------------------------- #
-# Examples
-# ------------------------------------------------------------------------- #
-if __name__ == "__main__":
-    os.makedirs("data/gen", exist_ok=True)
-
-    tts = VibeVoiceAdapter(
-        model_id="vibevoice/VibeVoice-7B",   # or "vibevoice/VibeVoice-1.5B"
-        device=None,                         # auto: cuda > mps > cpu
-        torch_dtype=None,                    # auto: bf16 on CUDA, f32 otherwise
-        attn_implementation=None,            # auto: flash_attention_2 on CUDA else sdpa
-        cfg_scale=1.3,
-        ddpm_steps=10,
-        is_prefill=True,
-        generation_config={"do_sample": False},
-        verbose=True,
-    )
-    tts.load_model()
-
-    # ---------- A) Single-speaker with prefill ----------
-    ref_wav = "data/ref/basic_ref_en.wav"
-    tts.clone_voice(ref_audio=ref_wav)
-    out = tts.synthesize("Hello! This is VibeVoice via TTS_PLAYGROUND.")
-    open("data/gen/vibevoice_single_prefill.wav", "wb").write(out)
-
-    # ---------- B) Single-speaker without prefill + mild sampling ----------
-    out = tts.synthesize(
-        "Now speaking without voice cloning and with mild sampling.",
-        is_prefill=False,  # disable even if a ref voice exists
-        generation_config={"do_sample": True, "temperature": 0.8, "top_p": 0.9},
-        seed=42,
-    )
-    open("data/gen/vibevoice_single_noprefill.wav", "wb").write(out)
-
-    # ---------- C) Multi-speaker using an explicit speaker→voice map ----------
-    # Text must be labeled "Speaker 1:", "Speaker 2:", ...
-    script = (
-        "Speaker 1: Hi! I'm the first speaker.\n"
-        "Speaker 2: And I'm the second speaker.\n"
-        "Speaker 1: Great to meet you!\n"
-    )
-    spk_map = {
-        "1": "data/ref/basic_ref_en.wav",
-        "2": "data/ref/fr/Ellie_Bishop_fr.wav",
-    }
-    tts.clone_voice(speaker_voices=spk_map)  # set once
-    out = tts.synthesize(script, cfg_scale=1.2)
-    open("data/gen/vibevoice_multi_map.wav", "wb").write(out)
-
-    # ---------- D) Multi-speaker using a voice list (1-based order) ----------
-    # If you don't want to provide a dict mapping, you can pass a list.
-    # The adapter will map: Speaker 1 -> list[0], Speaker 2 -> list[1], etc.
-    voices = [
-        "data/ref/basic_ref_en.wav",
-        "data/ref/fr/Ellie_Bishop_fr.wav",
-    ]
-    tts.clone_voice(voice_samples=voices)
-    out = tts.synthesize(script)  # automatically aligns by first appearance
-    open("data/gen/vibevoice_multi_list.wav", "wb").write(out)

@@ -3,13 +3,15 @@ name = "tts-adapter-dia2"
 version = "0.1.0"
 description = "Adapter for Dia2 2B (streaming dialogue TTS by Nari Labs)"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "torch",
     "torchaudio",
     "soundfile>=0.13.1",
     "loguru",
     "dia2",
+    "numba",
+    "llvmlite",
     "tts-core",
 ]
 

@@ -1,171 +1,190 @@
 # Chatterbox TTS Adapter
 
-This directory contains the adapter for **Chatterbox**, a state-of-the-art open-source TTS model by **Resemble AI**. It is a 0.5B-parameter autoregressive Transformer (based on LLaMA) designed for high-fidelity, zero-shot voice cloning with fine-grained control over emotion and pacing.
+Adapter for **Resemble AI — Chatterbox (English)** via the `chatterbox-tts` Python package.
 
-## 🧠 Model Overview
+This adapter integrates with the **TTS_playground** runtime (FastAPI + Celery + one isolated `uv` env per adapter).
 
-| Feature | Details |
-| :--- | :--- |
-| **Architecture** | Decoder-only Transformer (LLaMA-0.5B backbone) + HiFT-GAN Vocoder. |
-| **Model Size** | **\~500M Parameters**. Optimized for sub-200ms latency on GPU. |
-| **Languages** | **English (en)** officially supported in this adapter. *(Model family supports 23+ languages).* |
-| **Voice Cloning** | **Yes (Zero-shot)**. Requires 3–10 seconds of reference audio. |
-| **Emotion Control** | **Yes**. Continuous control via `exaggeration` (intensity) and `cfg_weight` (stability). |
-| **Audio Quality** | 24 kHz sample rate. |
-| **Safety** | Outputs are tagged with Resemble’s **PerTh neural watermark** for content provenance. |
+---
 
------
+## Why this adapter is implemented this way
 
-## ⚙️ Installation
+When you call the Playground API with a reference audio file, the worker **stages that upload into a per-request temporary directory** and deletes it after the request finishes.
 
-This adapter is designed to run as a standalone isolated environment within the `TTS_playground`.
+Upstream Chatterbox supports voice cloning in two ways:
 
-### Prerequisites
+1) `model.generate(text, audio_prompt_path=...)` (it calls `prepare_conditionals()` internally), or  
+2) call `model.prepare_conditionals(audio_prompt_path)` once, then call `model.generate(text)` without passing a path.
 
-  * **Python 3.12** (managed by `uv`).
-  * **GPU Recommended:** A generic GPU (CUDA).
+This adapter uses option (2) so it can **cache voice conditionals in memory** and keep synthesizing even after the original temp file is gone.
 
-### Setup via `uv`
+(Internally, Chatterbox stores conditionals in `model.conds`, and `generate()` reuses them when `audio_prompt_path` is not provided.)
 
-Navigate to the adapter directory and sync dependencies:
+---
+
+## Requirements
+
+- Python **3.12** (this adapter pins `requires-python = >=3.12,<3.13`)
+- `uv` (recommended) or any PEP-517 compatible installer
+- For GPU: a CUDA-enabled PyTorch build + NVIDIA drivers/toolkit (or use `device="cpu"`)
+
+> Chatterbox-tts itself supports Python 3.10+ and downloads weights from Hugging Face on first use.
+
+---
+
+## Install (standalone adapter environment)
+
+From the repo root:
 
 ```bash
 cd adapters/chatterbox
 uv sync
 ```
 
-*This installs the specific dependencies (`chatterbox-tts`, `torch`, etc.) required for this model without conflicting with other adapters.*
+Run the local example:
 
------
+```bash
+python examples/run_local.py
+```
 
-## 💻 Usage: Local Python
+The example expects a reference WAV at:
 
-You can use the adapter directly in Python scripts to synthesize audio.
+```text
+data/ref/basic_ref_en.wav
+```
 
-### Basic Example
+and writes outputs to:
 
-*(Adapted from `examples/run_local.py`)*
+```text
+data/local_examples/chatterbox/
+```
+
+---
+
+## Using the adapter directly (Python)
 
 ```python
-from pathlib import Path
 from tts_adapter_chatterbox.adapter import ChatterboxTTSAdapter
 
-# 1. Initialize & Load
-# device defaults to "cuda" or "mps" if available, else "cpu"
-tts = ChatterboxTTSAdapter()
+tts = ChatterboxTTSAdapter(device="cuda")  # "cuda", "mps", or "cpu"
 tts.load_model()
 
-# 2. Clone a Voice
-# Provide a path to a 3-10 second clean WAV file
-ref_audio_path = "data/ref/basic_ref_en.wav"
-tts.clone_voice(ref_audio_path)
+# Optional: voice cloning. If skipped, Chatterbox uses its built-in default voice
+# (the pretrained bundle includes a `conds.pt`).
+tts.clone_voice("data/ref/basic_ref_en.wav")
 
-# 3. Synthesize (Neutral)
 audio_bytes = tts.synthesize(
     "I've been a silent spectator, watching empires rise and fall.",
     cfg_weight=0.5,
-    exaggeration=0.5,  # ~Neutral
-    temperature=0.8
+    exaggeration=0.6,
+    temperature=0.8,
 )
 
-# 4. Synthesize (Dramatic/Emotional)
-emotional_bytes = tts.synthesize(
-    "But always remember, I am mighty and enduring!",
-    cfg_weight=0.4,    # Lower CFG = more relaxed pacing/higher expressiveness
-    exaggeration=0.85, # High emotion intensity
-    temperature=0.9
-)
-
-# Save to disk
 with open("output_chatterbox.wav", "wb") as f:
-    f.write(emotional_bytes)
+    f.write(audio_bytes)
 ```
 
-### Synthesis Parameters
+---
 
-The `synthesize` method exposes several controls to fine-tune the output:
+## Using via the Playground API
 
-| Parameter | Default | Range | Description |
-| :--- | :--- | :--- | :--- |
-| `exaggeration` | `0.5` | `0.2`–`1.0` | **Emotion Knob.** `0.5` is neutral. Higher values make speech more dramatic/expressive. |
-| `cfg_weight` | `0.5` | `0.2`–`0.8` | **Stability vs. Style.** `0.5` is standard. Lower values (`0.3`) allow more style transfer/slower pacing. `0.0` is used for cross-lingual transfer. |
-| `temperature` | `0.8` | `0.6`–`1.0` | Controls randomness. Higher = more varied prosody; Lower = more monotonous/stable. |
-| `repetition_penalty` | `1.2` | `1.0`–`1.4` | Penalizes repeating tokens. Increase if the model stutters. |
-| `top_p` | `1.0` | `0.8`–`1.0` | Nucleus sampling probability. |
+### Key behavior: caching is per-runner-process
 
------
+Voice conditionals are cached inside the **adapter runner process**.
 
-## 🌐 Usage: API (Docker Compose)
+They will be lost if:
+- the runner exits due to the idle timeout (`IDLE_SECS` + `EXIT_ON_IDLE`), or
+- the Playground switches to a different adapter (the Manager stops the previous runner to free RAM/VRAM).
 
-The `TTS_playground` orchestrator (FastAPI + Celery) can serve this adapter via HTTP.
+So if you want a “sticky” voice, keep using the same adapter and increase `IDLE_SECS`.
 
-### 1\. Start the Stack
-
-From the project root:
-
-```bash
-docker compose up -d
-```
-
-*This starts the API on port 7000 and the Celery worker managing the adapters.*
-
-### 2\. Python Client (`TTSClient`)
+### Python client example
 
 ```python
 from tts_playground.client.tts_client import TTSClient
 
-client = TTSClient("http://localhost:7000")
+client = TTSClient("http://localhost:7000", timeout=300.0)
+
 ref_blob = client.pack_file("data/ref/basic_ref_en.wav")
 
-result = client.synth(
+# 1) First request: clone voice (uploads ref audio once)
+client.synth(
     adapter="chatterbox",
-    clone_voice={ "ref_audio": ref_blob },
-    synthesize={
-        "text": "Hello via API.",
-        "kwargs": { "exaggeration": 0.7, "cfg_weight": 0.5 }
-    },
+    init={"device": "cuda"},
+    load_model={},
+    clone_voice={"ref_audio": ref_blob},
+    synthesize={"text": "Hello from Chatterbox.", "kwargs": {"exaggeration": 0.6}},
+    wait=True,
     download=True,
-    dest_path="api_output.wav"
+    dest_path="out_01.wav",
 )
+
+# 2) Next request: reuse cached conditionals
+# IMPORTANT: pass an empty object for clone_voice ({}). The API schema always includes it.
+client.synth(
+    adapter="chatterbox",
+    init={"device": "cuda"},
+    load_model={},
+    clone_voice={},  # reuse the last cloned voice in this runner process
+    synthesize={"text": "Second line, same voice.", "kwargs": {"exaggeration": 0.5}},
+    wait=True,
+    download=True,
+    dest_path="out_02.wav",
+)
+
+client.close()
 ```
 
-### 3\. Direct HTTP Request
+---
 
-If calling from non-Python environments:
+## Reference audio tips
 
-**POST** `http://localhost:7000/v1/tts`
+- Chatterbox can clone a voice from **a few seconds** of reference audio.
+- In practice, **5–20 seconds** tends to work well depending on noise/clarity.
 
-```json
-{
-  "adapter": "chatterbox",
-  "init": { "device": "cuda" },
-  "load_model": {},
-  "clone_voice": {
-    "ref_audio": {
-      "name": "ref.wav",
-      "b64": "<base64_encoded_wav_bytes>"
-    }
-  },
-  "synthesize": {
-    "text": "This is a raw HTTP request test.",
-    "kwargs": {
-      "exaggeration": 0.6,
-      "temperature": 0.8
-    }
-  }
-}
-```
+Use a clean, single-speaker clip (minimal music/background).
 
------
+---
 
-## 🎙️ Voice Cloning Best Practices
+## Parameters exposed by this adapter
 
-1.  **Reference Length:** Use **3 to 10 seconds** of audio. Very long clips do not necessarily improve quality and may confuse the style encoder.
-2.  **Audio Quality:** Ensure the reference is **clean** (no background music, noise, or reverb). The model will attempt to clone the background noise if present.
-3.  **Consistency:** For comparisons, use the same recording conditions.
-4.  **State:** In this adapter, calling `clone_voice` caches the audio path/embedding. You can call `synthesize` multiple times without re-cloning.
+These map to `ChatterboxTTS.generate(...)`:
 
-## 🔗 Credits & License
+| Parameter | Default | Meaning |
+|---|---:|---|
+| `exaggeration` | `0.5` | Emotion intensity (higher = more expressive; can also speed up delivery). |
+| `cfg_weight` | `0.5` | CFG strength. Lower values can help pacing for fast reference voices. |
+| `temperature` | `0.8` | Sampling randomness. |
+| `top_p` | `1.0` | Nucleus sampling cutoff. |
+| `min_p` | `0.05` | Probability floor used by the sampler. |
+| `repetition_penalty` | `1.2` | Helps reduce repetition (“stuttering”). |
 
-  * **Original Model:** [Resemble AI Chatterbox](https://github.com/resemble-ai/chatterbox)
-  * **License:** The model weights are released under **CC-BY-NC** (Non-Commercial). Please verify the license on the official repository before commercial use.
+---
+
+## Output details
+
+- Sample rate: **24 kHz** (Chatterbox `model.sr`).
+- Audio is **watermarked** with Resemble AI’s PerTh watermarker (built into Chatterbox).
+
+---
+
+## Troubleshooting
+
+### “Torch not compiled with CUDA enabled”
+You installed a CPU-only PyTorch build. Either:
+- reinstall torch/torchaudio with CUDA wheels that match your CUDA runtime, or
+- set `device="cpu"`.
+
+This adapter will automatically fall back to CPU if you request `"cuda"` but CUDA is not available.
+
+### First run is slow
+The first run downloads model weights into your Hugging Face cache (`HF_HOME` / `HF_HUB_CACHE`).
+
+---
+
+## Upstream links / attribution
+
+- Upstream repo: https://github.com/resemble-ai/chatterbox
+- PyPI: https://pypi.org/project/chatterbox-tts/
+- Hugging Face model: https://huggingface.co/ResembleAI/chatterbox
+
+License and weight terms come from upstream (MIT for the code; always verify before deployment).

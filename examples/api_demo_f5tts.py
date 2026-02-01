@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Initialize Client
     print(f"Connecting to {BASE_URL}...")
-    client = TTSClient(BASE_URL, timeout=300.0) # F5 might be slower on first run
+    client = TTSClient(BASE_URL, timeout=180.0) # F5 might be slower on first run
 
     # --- 1. Prepare Blob ---
     spk_ref_blob = client.pack_file(str(SPK_REF_PATH))

@@ -1,208 +1,172 @@
 # Dia2 Adapter
 
-This directory contains the adapter for **Dia2 2B**, a streaming dialogue text-to-speech system by **Nari Labs**. Unlike traditional TTS, Dia2 is optimized for generating natural, turn-taking conversations. It can start generating speech as soon as the first words arrive and uses audio prompts to steer voice and style.
+Adapter for **Dia2-2B** (Nari Labs), a dialogue-focused, low-latency TTS system designed for **turn-taking conversations**.
 
-## 🧠 Model Overview
+Dia2 expects **dialogue scripts** with speaker tags like:
 
-| Feature | Details |
-| :--- | :--- |
-| **Architecture** | Streaming dialogue transformer. Separates text & audio sampling configs. Uses **Mimi codec** + CUDA graphs for low latency. |
-| **Model Size** | **Dia2-2B** (This adapter defaults to the 2B checkpoint). |
-| **Languages** | **English**. Designed for \~2 minutes of coherent audio per generation. |
-| **Voice Conditioning** | **Yes (Style Prompting)**. Use short prefix audio clips per speaker (e.g., `prefix_speaker_1`). |
-| **Emotion Control** | **Implicit**. Emotion & prosody are derived from the script context and audio prefix. |
-| **Streaming** | **Yes**. Designed to begin generating audio tokens before the full text script is processed. |
-| **License** | **Apache-2.0** (Same as upstream). |
+```text
+[S1] Hello!
+[S2] Hi — great to meet you.
+```
 
------
+It also supports **prefix audio prompts** per speaker to steer timbre/style (Dia2 uses Whisper to transcribe these prompts, so conditioning adds latency).
 
-## ⚙️ Installation
+---
 
-This adapter runs as an isolated environment within `TTS_playground`. However, due to packaging issues in the upstream repository, the installation process differs slightly from other adapters.
+## Installation (local clone required)
 
-### ⚠️ The "External" Folder Setup
+This adapter installs the `dia2` Python package from **local source** (editable mode) via `external/dia2`.
 
-If you try to install `dia2` directly from PyPI or a standard wheel, you will encounter a `ModuleNotFoundError: No module named 'dia2.core'`. This is because the current upstream build configuration excludes required submodules.
+### 1) Clone upstream Dia2 into `external/dia2`
 
-To fix this, we utilize a local source installation via an **`external/`** directory.
-
-### 1\. Clone Dia2 Locally
-
-From the root of `TTS_playground`, create the `external` folder and clone the repository there:
+From the **root** of `TTS_playground`:
 
 ```bash
-# From the project root
 mkdir -p external
-git clone https://github.com/nari-labs/dia2.git external/dia2
+git clone --depth 1 https://github.com/nari-labs/dia2.git external/dia2
 ```
 
-### 2\. Configure `uv`
+Alternative (recommended if you want it tracked but not vendored): use a git submodule:
 
-The adapter is already configured to look for this folder. The `pyproject.toml` in this directory contains:
-
-```toml
-[tool.uv.sources]
-dia2 = { path = "../../external/dia2", editable = true }
+```bash
+git submodule add https://github.com/nari-labs/dia2.git external/dia2
+git submodule update --init --recursive
 ```
 
-This tells `uv` to install Dia2 in "editable mode" from your local clone, ensuring all sub-packages (`dia2.core`, `dia2.audio`, etc.) are correctly discovered.
-
-### 3\. Sync Environment
-
-Navigate to the adapter directory and install dependencies:
+### 2) Create the adapter environment
 
 ```bash
 cd adapters/dia2
 uv sync
 ```
 
-*This creates the virtual environment and installs `torch`, `torchaudio`, and the local `dia2` reference.*
+This creates `adapters/dia2/.venv` and installs:
+- this adapter (`tts-adapter-dia2`)
+- `dia2` from `../../external/dia2` (editable)
+- runtime deps (`torch`, `torchaudio`, `soundfile`, …)
 
------
+> **Docker note**: `docker-compose.yml` mounts `./external` to `/workspace/external` in the worker container.  
+> The adapter’s `uv` config uses `../../external/dia2`, so the clone must exist at `./external/dia2` on the host.
 
-## 💻 Usage: Local Python
+---
 
-You can use the adapter directly in Python scripts. Dia2 is unique because it expects **dialogue scripts** (e.g., `[S1]`, `[S2]`) rather than plain text.
+## Run the local example
 
-### Basic Example
+From `adapters/dia2`:
+
+```bash
+uv run python examples/run_local.py
+```
+
+Outputs are written to:
+
+```text
+data/local_examples/dia2/
+```
+
+---
+
+## Use in Python
 
 ```python
 from tts_adapter_dia2.adapter import Dia2Adapter
 
-# 1. Initialize & Load
 tts = Dia2Adapter(
-    repo_id="nari-labs/Dia2-2B",  # HF repo ID
-    device="cuda",                # "cpu" is supported but slower
-    dtype="bfloat16",             # Recommended for CUDA
-    cfg_scale=2.0,
-    use_cuda_graph=True,
+    repo_id="nari-labs/Dia2-2B",
+    device=None,          # auto-select cuda if available
+    dtype="bfloat16",     # auto-fallback to float32 on CPU
+    cfg_scale=6.0,        # matches upstream CLI quickstart
+    audio_temperature=0.8,
+    audio_top_k=50,
+    use_cuda_graph=True,  # only applied on CUDA
 )
 tts.load_model()
 
-# 2. (Optional) Audio Prompting
-# This serves as a style/voice prompt rather than strict cloning.
+# Optional: prefix audio for conditioning (style steering)
 tts.clone_voice(
     prefix_speaker_1="data/ref/basic_ref_en.wav",
-    include_prefix_audio=False,   # Use for conditioning only; do not include in output
+    include_prefix=False,   # do NOT prepend reference audio to output
 )
 
-# 3. Prepare Dialogue Script
 script = (
-    "[S1] Hello, this is Dia2 running inside the Playground.\n"
-    "[S2] Nice! We can generate natural conversation directly from a script."
+    "[S1] Hello, this is Dia2 running inside TTS Playground.\n"
+    "[S2] Nice! We can generate natural dialogue directly from a script."
 )
 
-# 4. Synthesize
-audio_bytes = tts.synthesize(script)
-
-with open("output_dia2.wav", "wb") as f:
-    f.write(audio_bytes)
+wav_bytes = tts.synthesize(script)
+open("output_dia2.wav", "wb").write(wav_bytes)
 ```
 
-### Synthesis Parameters
+---
 
-The `synthesize` method exposes high-level knobs that map to Dia2’s internal configuration:
+## Important parameters
 
-| Parameter | Default | Description |
-| :--- | :--- | :--- |
-| `temperature` | `0.8` | Shortcut for `temp_audio`. Higher values = more variation/expressiveness; Lower = safer/monotone. |
-| `top_k` | `50` | Shortcut for `topk_audio`. Controls the sampling pool size. |
-| `cfg_scale` | `2.0` | **Classifier-Free Guidance.** Higher values force the model to adhere strictly to the text. |
-| `prefix_speaker_X` | `None` | Override the voice prompt for specific speakers per-call. |
-| `include_prefix` | `False` | If `True`, the output audio will start with the reference audio clip. |
+### Adapter init (`Dia2Adapter(...)`)
 
------
+| Parameter | Default | Notes |
+|---|---:|---|
+| `repo_id` | `nari-labs/Dia2-2B` | HF weights repo |
+| `device` | `None` | auto-select `cuda` if available |
+| `dtype` | `bfloat16` | falls back to `float32` on CPU |
+| `cfg_scale` | `6.0` | classifier-free guidance strength |
+| `audio_temperature` | `0.8` | audio sampling temperature |
+| `audio_top_k` | `50` | audio sampling top-k |
+| `use_cuda_graph` | `True` | only used when `device=="cuda"` |
 
-## 🌐 Usage: API (Docker Compose)
+### Synthesis (`synthesize(...)`)
 
-The `TTS_playground` orchestrator can serve Dia2 via HTTP.
+| Parameter | Default | Notes |
+|---|---:|---|
+| `temperature` | init default | overrides `audio_temperature` |
+| `top_k` | init default | overrides `audio_top_k` |
+| `cfg_scale` | init default | overrides init cfg |
+| `prefix_speaker_1/2` | cached | pass `None` to disable cached prefix for one call |
+| `include_prefix` | cached | if `True`, output starts with the prefix audio |
+| `include_prefix_audio` | alias | accepted for backwards compatibility |
 
-### 1\. Start the Stack
+> Upstream keyword is `include_prefix`. Some older builds used `include_prefix_audio`.  
+> This adapter accepts both; `include_prefix` wins if both are provided.
 
-Ensure you have performed the **Installation** steps above (cloning into `external/dia2`), then:
+---
+
+## API usage (via Docker stack)
+
+1) Start the stack:
 
 ```bash
-docker compose up -d
+docker compose up --build
 ```
 
-### 2\. Python Client (`TTSClient`)
+2) Run the provided client example:
 
-```python
-from tts_playground.client.tts_client import TTSClient
-
-client = TTSClient("http://localhost:7000")
-ref_blob = client.pack_file("data/ref/basic_ref_en.wav")
-
-script = (
-    "[S1] Hello via the Dia2 API.\n"
-    "[S2] Great, the adapter wiring works!"
-)
-
-result = client.synth(
-    adapter="dia2",
-    init={
-        "repo_id": "nari-labs/Dia2-2B",
-        "device": "cuda",
-        "dtype": "bfloat16",
-        "use_cuda_graph": True
-    },
-    load_model={},
-    clone_voice={
-        "prefix_speaker_1": ref_blob,
-        "include_prefix_audio": False,
-    },
-    synthesize={
-        "text": script,
-        "kwargs": {"temperature": 0.9}
-    },
-    download=True,
-    dest_path="api_output_dia2.wav"
-)
+```bash
+python examples/api_demo_dia2.py
 ```
 
-### 3\. Direct HTTP Request
+Outputs are written to:
 
-**POST** `http://localhost:7000/v1/tts`
-
-```json
-{
-  "adapter": "dia2",
-  "init": {
-    "repo_id": "nari-labs/Dia2-2B",
-    "device": "cuda",
-    "dtype": "bfloat16",
-    "use_cuda_graph": true
-  },
-  "load_model": {},
-  "clone_voice": {
-    "prefix_speaker_1": {
-      "name": "ref.wav",
-      "b64": "<base64_encoded_wav_bytes>"
-    },
-    "include_prefix_audio": false
-  },
-  "synthesize": {
-    "text": "[S1] This is a raw HTTP request test.\n[S2] Dia2 responds in dialogue form.",
-    "kwargs": {
-      "temperature": 0.9,
-      "top_k": 80
-    }
-  }
-}
+```text
+data/api_examples/dia2/
 ```
 
------
+---
 
-## 🎙️ Best Practices
+## Troubleshooting
 
-1.  **Dialogue First:** Dia2 is built for conversation. Write scripts using `[S1]`, `[S2]` tags rather than treating it as a single-speaker narrator.
-2.  **Conditioning vs. Cloning:** The `prefix_speaker` audio acts as a style conditioner. It steers the timbre and prosody, but it is not a "strict" clone like F5-TTS or XTTS. The output voice may vary slightly between runs.
-3.  **Prompt Length:** Short prompts (3-10 seconds) generally work best.
-4.  **Temperature:** If the model mumbles or speaks gibberish, try lowering the `temperature` (e.g., to 0.6 or 0.7). If it sounds too robotic, increase it (e.g., 0.9).
-5.  **Duration:** The 2B model is optimized for generations up to \~2 minutes. For longer content, split your script into smaller chunks.
+- **Worker error: missing external paths**
+  - The worker validates that `external/dia2/pyproject.toml` exists before starting the Dia2 runner.
+  - Fix by cloning Dia2 into `./external/dia2` (see Installation section).
 
-## 🔗 Credits & License
+- **CPU + bfloat16**
+  - If you run on CPU, the adapter automatically falls back from `bfloat16` to `float32`.
 
-  * **Original Model & Code:** [Nari Labs – Dia2](https://github.com/nari-labs/dia2)
-  * **Model Weights:** [Hugging Face – nari-labs/Dia2-2B](https://huggingface.co/nari-labs/Dia2-2B)
-  * **License:** Apache-2.0
+- **Prefix prompts are slow**
+  - Dia2 uses Whisper to transcribe prefix audio, so conditioning adds noticeable latency.
+
+---
+
+## Credits & License
+
+- Upstream: Nari Labs Dia2 — https://github.com/nari-labs/dia2
+- Weights: https://huggingface.co/nari-labs/Dia2-2B
+- License: Apache-2.0 (see upstream repository)

@@ -5,13 +5,9 @@ description = "Adapter for Chatterbox TTS"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    #"torch",
-    #"torchaudio",
-    "chatterbox-tts>=0.1.4",
-    "soundfile",
-    "onnx>=1.14.0,<1.19.0",
-    "pandas>=2.2.2",
+    "chatterbox-tts==0.1.6",
     "loguru",
+    "soundfile",
     "tts-core",
 ]
 
@@ -23,15 +19,7 @@ build-backend = "hatchling.build"
 packages = ["src/tts_adapter_chatterbox"]
 
 [tool.uv.sources]
-#torch = { index = "pytorch-cu128" }
-#torchaudio = { index = "pytorch-cu128" }
 tts-core = { path = "../../libs/tts_core", editable = true }
-
-#[[tool.uv.index]]
-#name = "pytorch-cu128"
-#url = "https://download.pytorch.org/whl/nightly/cu128"
-#explicit = true
-
 
 [tool.uv]
 prerelease = "allow"
@@ -40,5 +28,48 @@ override-dependencies = [
   "numpy>=1.26.0,<2.0.0",
 ]
 
-[tool.uv.extra-build-dependencies]
-pkuseg = ["numpy<2.0.0", "cython", "setuptools"]
+
+#[project]
+#name = "tts-adapter-chatterbox"
+#version = "0.1.0"
+#description = "Adapter for Chatterbox TTS"
+#readme = "README.md"
+#requires-python = ">=3.12,<3.13"
+#dependencies = [
+#    #"torch",
+#    #"torchaudio",
+#    "chatterbox-tts>=0.1.4",
+#    "soundfile",
+#    "onnx>=1.14.0,<1.19.0",
+#    "pandas>=2.2.2",
+#    "loguru",
+#    "tts-core",
+#]
+#
+#[build-system]
+#requires = ["hatchling"]
+#build-backend = "hatchling.build"
+#
+#[tool.hatch.build.targets.wheel]
+#packages = ["src/tts_adapter_chatterbox"]
+#
+#[tool.uv.sources]
+##torch = { index = "pytorch-cu128" }
+##torchaudio = { index = "pytorch-cu128" }
+#tts-core = { path = "../../libs/tts_core", editable = true }
+#
+##[[tool.uv.index]]
+##name = "pytorch-cu128"
+##url = "https://download.pytorch.org/whl/nightly/cu128"
+##explicit = true
+#
+#
+#[tool.uv]
+#prerelease = "allow"
+#index-strategy = "unsafe-best-match"
+#override-dependencies = [
+#  "numpy>=1.26.0,<2.0.0",
+#]
+#
+#[tool.uv.extra-build-dependencies]
+#pkuseg = ["numpy<2.0.0", "cython", "setuptools"]

@@ -1,46 +1,80 @@
-import os
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
 import torch
 from chatterbox.tts import ChatterboxTTS
 
 from tts_core.base import BaseTTS
 
+
 class ChatterboxTTSAdapter(BaseTTS):
-    """
-    Adapter for Resemble AI's Chatterbox TTS model.
-    Supports zero-shot voice cloning via audio prompts and exposes:
-      - repetition_penalty
-      - min_p, top_p (nucleus sampling)
-      - temperature
-      - cfg_weight (classifier-free guidance)
-      - exaggeration (emotion intensity)
+    """Adapter for Resemble AI's Chatterbox TTS (English).
+
+    Design goal (Playground runtime):
+    - The worker stages uploaded reference audio into a per-request temp directory.
+      That directory is deleted after each request.
+    - Upstream Chatterbox can cache voice conditionals in `model.conds` via
+      `prepare_conditionals(audio_prompt_path=...)`.
+    - We therefore cache conditionals in memory, and synthesize without passing
+      `audio_prompt_path`, so we do not depend on the original file path later.
     """
 
-    def __init__(self, device: str = None):
+    def __init__(self, device: Optional[str] = None):
         super().__init__()
-        
+        self.device = device or self._auto_device()
+        self.model: Optional[ChatterboxTTS] = None
+        self.sr: Optional[int] = None
+
+    @staticmethod
+    def _auto_device() -> str:
+        if torch.cuda.is_available():
+            return "cuda"
+        if getattr(torch.backends, "mps", None) is not None and torch.backends.mps.is_available():
+            return "mps"
+        return "cpu"
+
+    def load_model(self, *, device: Optional[str] = None) -> None:
+        """Load the model weights into memory.
+
+        Args:
+            device: Optionally override the device ("cuda", "mps", "cpu").
+        """
         if device:
             self.device = device
-        else:
-            if torch.cuda.is_available():
-                self.device = "cuda"
-            elif torch.backends.mps.is_available():
-                self.device = "mps"
-            else:
+
+        # Avoid a common failure mode early.
+        if self.device == "cuda" and not torch.cuda.is_available():
+            self.device = "cpu"
+
+        try:
+            self.model = ChatterboxTTS.from_pretrained(device=self.device)
+        except (AssertionError, RuntimeError) as e:
+            # Common failure: CPU-only torch installed but device="cuda"
+            msg = str(e).lower()
+            if self.device == "cuda" and ("torch not compiled with cuda" in msg or "cuda" in msg):
                 self.device = "cpu"
-        self.model: ChatterboxTTS = None
-        self.sr: int = None
-        self._cached_audio_prompt: str = None
+                self.model = ChatterboxTTS.from_pretrained(device="cpu")
+            else:
+                raise
 
-    def load_model(self):
+        self.sr = int(getattr(self.model, "sr", 24000))
 
-        self.model = ChatterboxTTS.from_pretrained(device=self.device)
-        self.sr = self.model.sr
+    def clone_voice(self, ref_audio: str, *, exaggeration: float = 0.5) -> bool:
+        """Prepare and cache voice conditionals from a reference audio clip.
 
-    def clone_voice(self, ref_audio: str):
+        Caches conditionals in-memory (model.conds) so we don't depend on the path
+        existing after the request (temp dir is deleted by the worker).
+        """
+        if self.model is None:
+            raise RuntimeError("Chatterbox model not loaded; call load_model() first.")
 
-        if not os.path.isfile(ref_audio):
-            raise FileNotFoundError(f"Voice sample not found: {ref_audio}")
-        self._cached_audio_prompt = ref_audio
+        ref_path = Path(ref_audio)
+        if not ref_path.is_file():
+            raise FileNotFoundError(f"Voice sample not found: {ref_path}")
+
+        self.model.prepare_conditionals(str(ref_path), exaggeration=float(exaggeration))
         return True
 
     def synthesize(
@@ -54,57 +88,25 @@ class ChatterboxTTSAdapter(BaseTTS):
         cfg_weight: float = 0.5,
         exaggeration: float = 0.5,
     ) -> bytes:
-
         if self.model is None or self.sr is None:
             raise RuntimeError("Chatterbox model not loaded; call load_model() first.")
 
-        if self._cached_audio_prompt is None:
-            raise RuntimeError("call clone_voice() first")
+        # Upstream generate() requires existing conditionals if audio_prompt_path is not passed.
+        if getattr(self.model, "conds", None) is None:
+            raise RuntimeError(
+                "No voice conditionals available. Call clone_voice(ref_audio=...) first "
+                "or use a pretrained bundle that ships with default conditionals."
+            )
 
         wav_tensor = self.model.generate(
             text,
-            repetition_penalty=repetition_penalty,
-            min_p=min_p,
-            top_p=top_p,
-            audio_prompt_path=self._cached_audio_prompt,
-            exaggeration=exaggeration,
-            cfg_weight=cfg_weight,
-            temperature=temperature,
+            repetition_penalty=float(repetition_penalty),
+            min_p=float(min_p),
+            top_p=float(top_p),
+            temperature=float(temperature),
+            cfg_weight=float(cfg_weight),
+            exaggeration=float(exaggeration),
         )
-        wav_np = wav_tensor.squeeze(0).cpu().numpy()
+
+        wav_np = wav_tensor.squeeze(0).detach().cpu().numpy()
         return self._wav_to_bytes(wav_np, self.sr)
-
-if __name__ == "__main__":
-
-    tts = ChatterboxTTSAdapter()
-    tts.load_model()
-    tts.clone_voice("data/ref/basic_ref_en.wav")
-
-    audio_bytes = tts.synthesize(
-        "I don't really care what you call me. I've been a silent spectator, watching species evolve, empires rise and fall. But always remember, I am mighty and enduring.",
-        #repetition_penalty=1.1,
-        #min_p=0.02,
-        #top_p=0.9,
-        #temperature=1.0,
-        cfg_weight=0.5,
-        exaggeration=0.5,
-    )
-
-    with open("data/gen/output_classic.wav", "wb") as f:
-        f.write(audio_bytes)
-
-
-    tts.clone_voice("data/gen/testkokorof.wav")
-
-    audio_bytes = tts.synthesize(
-        "Le trésor de Tourouvre, appelé aussi trésor double de Tourouvre, est un trésor monétaire découvert en 2010 sur le territoire de la commune de Tourouvre, dans le département français de l'Orne, en région Normandie.",
-        #repetition_penalty=1.1,
-        #min_p=0.02,
-        #top_p=0.9,
-        #temperature=1.0,
-        cfg_weight=0.5,
-        exaggeration=0.5,
-    )
-
-    with open("data/gen/output_classic_fr.wav", "wb") as f:
-        f.write(audio_bytes)

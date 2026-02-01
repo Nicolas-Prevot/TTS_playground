@@ -25,7 +25,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     print(f"Connecting to {BASE_URL}...")
-    client = TTSClient(BASE_URL, timeout=300.0)
+    client = TTSClient(BASE_URL, timeout=180.0)
 
     # --- 1. Prepare Blob ---
     spk_ref_blob = client.pack_file(str(SPK_REF_PATH))

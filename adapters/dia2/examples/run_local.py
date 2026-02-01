@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 from loguru import logger
 
@@ -18,28 +17,33 @@ if __name__ == "__main__":
 
     logger.info(f"Repo Root: {REPO_ROOT}")
     if not SPK_REF_AUDIO.exists():
-        logger.warning(f"Reference audio not found at {SPK_REF_AUDIO}. "
-                       "Continuing without audio prompts.")
+        logger.warning(
+            f"Reference audio not found at {SPK_REF_AUDIO}. "
+            "Continuing without audio prompts."
+        )
 
     # --- 2. Initialize Adapter ---
     logger.info("Initializing Dia2 Adapter...")
     tts = Dia2Adapter(
         repo_id="nari-labs/Dia2-2B",
-        device="cuda",        # or "cpu" if needed
-        dtype="bfloat16",     # recommended for CUDA GPUs
-        cfg_scale=2.0,
+        device=None,         # auto-select (cuda if available, else cpu)
+        dtype="bfloat16",    # recommended for CUDA GPUs; auto-fallback to float32 on CPU
+        cfg_scale=6.0,       # matches upstream CLI quickstart
         audio_temperature=0.8,
         audio_top_k=50,
-        use_cuda_graph=True,
+        use_cuda_graph=True, # only used when device is CUDA
     )
     tts.load_model()
 
     # --- 3. Optional Voice Conditioning (Audio Prompt) ---
     if SPK_REF_AUDIO.exists():
-        logger.info("Setting prefix speaker 1 from reference audio (conditioning).")
+        logger.info(
+            "Setting prefix speaker 1 from reference audio (conditioning). "
+            "NOTE: Dia2 uses Whisper to transcribe prefix audio (extra latency)."
+        )
         tts.clone_voice(
             prefix_speaker_1=str(SPK_REF_AUDIO),
-            include_prefix_audio=False,  # use as style prompt only
+            include_prefix=False,  # conditioning only (do not prepend ref audio)
         )
 
     # --- 4. Example A: Basic Two-Speaker Dialogue ---
@@ -72,7 +76,7 @@ if __name__ == "__main__":
 
     # --- 6. Example C: Using only text (no audio prompt) ---
     logger.info("--- Case C: No prefix audio ---")
-    # You can ignore the cloned voice by passing explicit prefix overrides:
+    # Disable cached prefix prompts for one call by passing None explicitly.
     script_c = (
         "[S1] This line is generated without using any audio prefix.\n"
         "[S2] Dia2 still produces natural dialogue from text alone."

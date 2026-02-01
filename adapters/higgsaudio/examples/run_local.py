@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 from loguru import logger
+import torch
 
 from tts_adapter_higgsaudio.adapter import HiggsAudioAdapter
 
@@ -8,11 +9,11 @@ if __name__ == "__main__":
     # --- 1. Path Setup ---
     SCRIPT_DIR = Path(__file__).resolve().parent
     REPO_ROOT = SCRIPT_DIR.parent.parent.parent
-    
+
     SPK_REF_AUDIO = REPO_ROOT / "data" / "ref" / "basic_ref_en.wav"
     SPK_REF_TEXT = "Some call me nature, others call me mother nature."
     SCENE_DESC = "A clear voice speaking in a quiet room."
-    
+
     OUT_DIR = REPO_ROOT / "data" / "local_examples" / "higgsaudio"
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -24,13 +25,14 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # --- 3. Initialize Adapter ---
-    # Ensure you have 'bosonai/higgs-audio-v2-generation-3B-base' and tokenizer downloaded via HF
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
     tts = HiggsAudioAdapter(
-        device="cuda" if sys.platform != "darwin" else "mps",
-        use_static_kv_cache=True,
-        max_new_tokens=4096
+        device=device,
+        # Static KV cache is only beneficial on CUDA.
+        use_static_kv_cache=torch.cuda.is_available(),
+        max_new_tokens=4096,
     )
-    
+
     tts.load_model()
     logger.success("Model loaded.")
 
@@ -44,12 +46,12 @@ if __name__ == "__main__":
 
     # --- 5. Synthesize ---
     logger.info("Generating Audio...")
-    
+
     text = (
         "Hello! This is HiggsAudio running locally via the adapter. "
         "It supports high-fidelity voice cloning and expressive speech."
     )
-    
+
     audio_bytes = tts.synthesize(
         text,
         temperature=0.95,
@@ -60,5 +62,5 @@ if __name__ == "__main__":
     out_path = OUT_DIR / "higgs_output.wav"
     with open(out_path, "wb") as f:
         f.write(audio_bytes)
-        
+
     logger.success(f"Saved to {out_path}")
