@@ -1,0 +1,34 @@
+[project]
+name = "tts-adapter-dia2"
+version = "0.1.0"
+description = "Adapter for Dia2 2B (streaming dialogue TTS by Nari Labs)"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "torch",
+    "torchaudio",
+    "soundfile>=0.13.1",
+    "loguru",
+    "dia2",
+    "numba",
+    "llvmlite",
+    "tts-core",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_adapter_dia2"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+torchaudio = { index = "pytorch-cu128" }
+tts-core = { path = "../../libs/tts_core", editable = true }
+dia2 = { path = "../../external/dia2", editable = true }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

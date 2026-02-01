@@ -1,0 +1,17 @@
+checkpoints/
+
+data/
+examples/
+docs/
+
+.venv/
+adapters/*/.venv/
+
+.git/
+.vscode/
+.idea/
+
+pycache/
+*.pyc
+*.pyo
+*.pyd

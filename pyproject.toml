@@ -5,115 +5,30 @@ build-backend = "hatchling.build"
 [project]
 name = "tts_playground"
 version = "0.0.1"
-description = "Unified TTS Playground with multiple open-source adapters"
+description = "Orchestrator for TTS Playground"
 authors = [{ name = "Nicolas PREVOT", email = "nicolasprevot57@gmail.com" }]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12"
 readme = "README.md"
 dependencies = [
     "soundfile>=0.13.1",
     "loguru",
+    "pydantic>=2.9.2",
+    "fastapi>=0.116.1",
+    "uvicorn[standard]>=0.35.0",
+    "python-multipart>=0.0.20",
+    "httpx>=0.28.1",
+    "celery",
+    "redis",
+    "tts-core",
 ]
 
-[project.optional-dependencies]
-f5 = [
-    "torch",
-    "torchaudio",
-    "f5-tts>=1.1.7",
-    "bigvgan>=2.4.1",
-]
-kokoro = [
-    "kokoro>=0.9.4",
-    "misaki[en]>=0.9.4",
-    "numpy==1.26.4",
-    "spacy==3.8.7",
-    "torch",
-    "torchaudio",
-]
-fishaudio = [
-    "fish-speech",
-    "torch",
-    "torchaudio",
-]
-kyutai = [
-    "moshi>=0.2.6,<0.3",
-    "torch>=2.2.0,<2.8",
-    "torchaudio",
-]
-chatterbox = [
-    "chatterbox-tts>=0.1.2",
-]
-dia = [
-    "resampy>=0.4.3",
-    "transformers",
-    "torch",
-]
-higgsaudio = [
-    "accelerate>=0.26.0",
-    "boson-multimodal",
-    "dacite>=1.9.2",
-    "descript-audio-codec>=1.0.0",
-    "descript-audiotools>=0.7.2",
-    "jieba>=0.42.1",
-    "langid>=1.1.6",
-    "librosa>=0.11.0",
-    "loguru>=0.7.3",
-    "omegaconf>=2.4.0.dev3",
-    "pandas>=2.3.1",
-    "torch",
-    "torchaudio",
-    "tqdm>=4.67.1",
-    "transformers>=4.45.1,<4.47.0",
-    "vector-quantize-pytorch>=1.22.18",
+[tool.uv.workspace]
+members = [
+    "libs/*",
 ]
 
 [tool.uv.sources]
-torch = [
-    { index = "pytorch-cu128", extra = "f5" },
-    { index = "pytorch-cu128", extra = "kokoro" },
-    { index = "pytorch-cu128", extra = "fishaudio" },
-    { index = "pytorch-cu128", extra = "kyutai" },
-    { index = "pytorch-cu128", extra = "dia" },
-    { index = "pytorch-cu128", extra = "higgsaudio" },
-]
-torchaudio = [
-    { index = "pytorch-cu128", extra = "f5" },
-    { index = "pytorch-cu128", extra = "kokoro" },
-    { index = "pytorch-cu128", extra = "fishaudio" },
-    { index = "pytorch-cu128", extra = "kyutai" },
-    { index = "pytorch-cu128", extra = "higgsaudio" },
-]
-fish-speech = { git = "https://github.com/fishaudio/fish-speech.git" }
-transformers = [
-  { index = "pypi", extra = "higgsaudio" },
-  { git   = "https://github.com/huggingface/transformers.git", extra = "dia" },
-]
-indextts = { git = "https://github.com/index-tts/index-tts.git"}
-boson-multimodal = { git = "https://github.com/boson-ai/higgs-audio.git"}
+tts-core = { workspace = true }
 
-[[tool.uv.index]]
-name = "pytorch-nightly"
-url = "https://download.pytorch.org/whl/nightly/cu128"
-
-[[tool.uv.index]]
-name = "pytorch-cu128"
-url = "https://download.pytorch.org/whl/cu128"
-
-[[tool.uv.index]]
-name = "pypi"
-url  = "https://pypi.org/simple"
-
-[tool.uv]
-package = true
-prerelease = "allow"
-index-strategy = "unsafe-best-match"
-conflicts = [
-    [
-      { extra = "kyutai" },
-      { extra = "kokoro" },
-      { extra = "f5" },
-      { extra = "fishaudio" },
-      { extra = "chatterbox" },
-      { extra = "dia" },
-      { extra = "higgsaudio" },
-    ],
-]
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_playground"]

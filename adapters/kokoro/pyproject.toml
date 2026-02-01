@@ -1,0 +1,33 @@
+[project]
+name = "tts-adapter-kokoro"
+version = "0.1.0"
+description = "Adapter for Kokoro TTS (82M)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "kokoro>=0.9.4",
+    "misaki[en]>=0.9.4", 
+    "soundfile>=0.13.1",
+    "numpy>=1.26",
+    #"spacy==3.8.7",
+    "torch",
+    "loguru",
+    "pip",
+    "tts-core",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tts_adapter_kokoro"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu128" }
+tts-core = { path = "../../libs/tts_core", editable = true }
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true

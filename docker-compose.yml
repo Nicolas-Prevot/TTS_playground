@@ -1,0 +1,75 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    container_name: 'tts_redis_broker'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 20s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: tts_api_image
+    container_name: tts_api_container
+    environment:
+      UVICORN_HOST: ${UVICORN_HOST}
+      UVICORN_PORT: ${UVICORN_PORT}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      HF_HOME: ${HF_CACHE_CONTAINER_DIR}
+      HF_HUB_CACHE: ${HF_CACHE_CONTAINER_DIR}
+    ports:
+      - "${UVICORN_PORT:-7000}:7000"
+    volumes:
+      - ${HF_CACHE_HOST_DIR}:${HF_CACHE_CONTAINER_DIR}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["uv", "run", "python", "-m", "tts_playground.api.main"]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    image: tts_worker_image
+    container_name: tts_celery_worker
+    environment:
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      CELERY_RESULT_EXPIRES: ${CELERY_RESULT_EXPIRES}
+      CELERY_CONCURRENCY: ${CELERY_CONCURRENCY}
+      ADAPTERS_DIR: /workspace/adapters
+      RUNNER_VENVS_DIR: /workspace/venvs
+      RUNNER_REQUEST_TIMEOUT: ${RUNNER_REQUEST_TIMEOUT}
+      IDLE_SECS: ${IDLE_SECS}
+      EXIT_ON_IDLE: ${EXIT_ON_IDLE}
+      HF_HOME: ${HF_CACHE_CONTAINER_DIR}
+      HF_HUB_CACHE: ${HF_CACHE_CONTAINER_DIR}
+      UV_CACHE_DIR: /uv_cache
+    #deploy:
+    #  resources:
+    #    reservations:
+    #      devices:
+    #        - capabilities: [gpu]
+    gpus: all
+    volumes:
+      - ${HF_CACHE_HOST_DIR}:${HF_CACHE_CONTAINER_DIR}
+      - ./adapters:/workspace/adapters:ro
+      - ./checkpoints:/workspace/checkpoints
+      - ./external:/workspace/external
+      - tts_uv_cache:/uv_cache
+      - tts_adapter_venvs:/workspace/venvs
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: ["uv", "run", "celery", "-A", "tts_playground.tasks.celery_app", "worker", "--loglevel=info"]
+
+volumes:
+  tts_uv_cache:
+  tts_adapter_venvs:
