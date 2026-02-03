@@ -82,3 +82,8 @@ class TTSClient:
 
     def close(self):
         self.client.close()
+
+    def stop(self) -> Dict[str, Any]:
+        r = self.client.post("/v1/stop")
+        r.raise_for_status()
+        return r.json()

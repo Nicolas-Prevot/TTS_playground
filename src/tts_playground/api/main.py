@@ -40,6 +40,12 @@ async def get_task_status(task_id: str):
     return response
 
 
+@app.post("/v1/stop", response_model=dict[str, str])
+async def stop_runners():
+    task = celery_app.send_task("tts.stop_runners")
+    return {"task_id": task.id}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(

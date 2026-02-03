@@ -303,5 +303,14 @@ class RunnerManager:
 
             return self._runners[adapter_name]
 
+    def stop_all(self) -> int:
+        """Stop all adapter runner processes (frees RAM/VRAM). Returns how many were stopped."""
+        stopped = 0
+        with self._lock:
+            for name, runner in self._runners.items():
+                if runner.proc is not None and runner.proc.poll() is None:
+                    runner.stop()
+                    stopped += 1
+        return stopped
 
 manager = RunnerManager()

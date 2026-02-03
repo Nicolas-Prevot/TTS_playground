@@ -1,5 +1,5 @@
 from typing import Any, Dict
-
+import gc
 from tts_playground.tasks.celery_app import celery_app
 from tts_playground.runtime.runner_manager import manager
 
@@ -36,3 +36,21 @@ def task_all(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         adapter_args=synth_kwargs
     )
     return result
+
+@celery_app.task(name="tts.stop_runners", bind=True)
+def task_stop_runners(self) -> dict:
+    """
+    Stops all adapter runner subprocesses to free memory immediately.
+    """
+    stopped = manager.stop_all()
+
+    gc.collect()
+    try:
+        import torch  # optional; worker env may not have it
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+    except Exception:
+        pass
+
+    return {"stopped": stopped}
